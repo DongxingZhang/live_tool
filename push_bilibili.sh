@@ -1,5 +1,6 @@
 #!/bin/bash
-PATH=/bin:/sbin:/usr/bin:/usr/sbin:/usr/local/bin:/usr/local/sbin:~/bin
+cur=`pwd`
+PATH=/bin:/sbin:/usr/bin:/usr/sbin:/usr/local/bin:/usr/local/sbin:~/bin:${cur}
 export PATH
 
 # 颜色选择
@@ -84,15 +85,21 @@ stream_play(){
     video_format="eq=contrast=1:brightness=0.2,curves=preset=lighter"
     #去掉logo
     if [ "$video_type" = "YOUK" ];then
-      video_format="delogo=x=795:y=25:w=160:h=35:show=0,eq=contrast=1:brightness=0.2,curves=preset=lighter"
+      video_format="delogo=x=795:y=25:w=160:h=35:show=0,eq=contrast=1:brightness=0.15,curves=preset=lighter"
     elif [ "$video_type" = "TVB0" ];then
-      video_format="delogo=x=965:y=40:w=75:h=60:show=0,eq=contrast=1:brightness=0.2,curves=preset=lighter"
+      video_format="delogo=x=965:y=40:w=75:h=60:show=0,eq=contrast=1:brightness=0.15,curves=preset=lighter"
     elif [ "$video_type" = "TVB1" ];then
-      video_format="delogo=x=400:y=30:w=75:h=60:show=0,eq=contrast=1:brightness=0.2,curves=preset=lighter"
+      video_format="delogo=x=400:y=30:w=75:h=60:show=0,eq=contrast=1:brightness=0.15,curves=preset=lighter"
     elif [ "$video_type" = "TVB2" ];then
-      video_format="delogo=535:y=30:w=75:h=60:show=0,eq=contrast=1:brightness=0.2,curves=preset=lighter"
+      video_format="delogo=x=535:y=30:w=75:h=60:show=0,eq=contrast=1:brightness=0.15,curves=preset=lighter"
+    elif [ "$video_type" = "TVB3" ];then
+      video_format="delogo=x=795:y=30:w=75:h=60:show=0,eq=contrast=1:brightness=0.15,curves=preset=lighter"
+    elif [ "$video_type" = "CCTV" ];then
+      video_format="delogo=x=80:y=50:w=155:h=120:show=0,eq=contrast=1:brightness=0.15,curves=preset=lighter"
+    elif [ "$video_type" = "TRB0" ];then
+      video_format="delogo=x=5:y=5:w=1270:h=40:show=0,delogo=x=1050:y=610:w=200:h=100:show=0,delogo=x=250:y=580:w=750:h=120:show=0,eq=contrast=1:brightness=0.15,curves=preset=lighter"
     else
-      video_format="eq=contrast=1:brightness=0.2,curves=preset=lighter"
+      video_format="eq=contrast=1:brightness=0.15,curves=preset=lighter"
     fi
     
     video_track=$(get_stream_track "${file}" "video")
@@ -118,6 +125,16 @@ stream_play(){
       echo "$file" >> "${playlist_done}"
       return 
     fi
+    
+    while true
+    do
+      hours=$(TZ=Asia/Shanghai date +%H)
+      #if [ ${hours} -ge 6 ];then
+      break
+      #fi
+      video_format="delogo=x=540:y=5:w=150:h=35:show=0"
+      ffmpeg -re -i "${waiting}" -preset ${preset_decode_speed} -vf ${video_format} -vcodec libx264 -g 60 -b:v 6000k -c:a aac -b:a 128k -strict -2 -f flv ${rtmp}
+    done
     
     mapv="0:${video_track}"
     mapa="0:${audio_track}"
@@ -153,20 +170,7 @@ stream_play(){
         ffmpeg -re -i "$file" -map ${mapv} -map ${mapa} -preset ${preset_decode_speed} -vf "${video_format}"  -i "${image}" -filter_complex "${watermark}" -c:v libx264 -c:a aac -b:a 192k  -strict -2 -f flv ${rtmp}
       fi
     fi
-
-    if [ "$?"  =  "0"  ];then
-      echo "$file" >> "${playlist_done}"
-    fi
-    
-    while true
-    do
-      hours=$(TZ=Asia/Shanghai date +%H)
-      if [ ${hours} -gt 6 ];then
-        break
-      fi
-      video_format="drawtext=fontcolor=black:fontsize=50:text='晚上0点到6点休息，停止播放':x=0:y=0"
-      ffmpeg -loglevel ${logging} -re -i "${waiting}" -preset ${preset_decode_speed} -vf "${video_format}" -vcodec libx264 -g 60 -b:v 6000k -c:a aac -b:a 128k -strict -2 -f flv ${rtmp}
-    done 
+    echo "$file" >> "${playlist_done}"
 }
 
 stream_play_main(){
@@ -175,29 +179,41 @@ stream_play_main(){
    line=`echo ${line} | tr -d '\n'`
    play_mode=$2
    
+   # 判断是否要跳过   
+   flag=${line:0:1}
+   if [ "${flag}" = "#" ];then
+     return
+   fi
+   
    video_type=${line:0:4}
    audio=${line:4:1}
    subtitle=${line:5:1}
    line=${line:6}
-   
+   echo $line
    if [[ -d "${line}" ]];then
      echo $line
+     echo $play_mode
      for subdirfile in "$line"/*; do
+       echo $subdirfile 
        if [ "${play_mode}" = "random"  ] && [[ -e "${playlist_done}" ]] && cat "${playlist_done}" | grep "$subdirfile" > /dev/null; then
          echo play $subdirfile  done
          continue
        fi
-       echo start playing $subdirfile
-       
-       stream_play "${subdirfile}" "${video_type}" "${audio}" "${subtitle}"
-       
+       echo start playing $subdirfile       
+       stream_play "${subdirfile}" "${video_type}" "${audio}" "${subtitle}"       
        if [ "${play_mode}" = "random"  ]; then
+	       echo "next folder"
          break
        fi
      done
+     echo "播放完毕"
    elif [[ -f "${line}" ]] ; then
+     echo "播放完毕"
      stream_play "${line}" "${video_type}" "${audio}" "${subtitle}"
+   else
+     echo "目录或者文件${line}不识别"
    fi
+   
 }
 
 stream_start(){    
@@ -213,15 +229,45 @@ stream_start(){
 
     while true
     do
-      line_no=1  
-      while read line; do 
-        echo $line
+      for line in `cat ${playlist}`
+      do
+        echo "File:${line}"
+	      date
         stream_play_main "${line}" "${play_mode}"
-        line_no=$((line_no+1))
-      done < "${playlist}"
+	      date
+      done
       # 等待60秒钟再一次读取播放列表
       sleep 60
     done
+}
+
+stream_append(){
+  while true
+  do
+    clear
+    echo "====视频列表===="
+    video_no=0
+    for subdirfile in /mnt/smb/电视剧/*; do
+      filename=`echo ${subdirfile} | awk -F "/" '{print $NF}'`
+      filenamelist[$video_no]=${filename}
+      video_no=$(expr $video_no + 1)
+      echo "[${video_no}]: ${filename}"
+    done
+    read -p "请输入视频序号:(1-$video_no),:" vindex
+    if [ $vindex -ge 0 ] && [ $vindex -le $video_no  ]; then
+      vindex=$(expr $vindex - 1)
+      echo '你选择了:'${filenamelist[$vindex]}
+      read -p "输入(yes/no/y/n)确认:" yes
+      if [ "$yes" = "y" ] || [ "$yes" = "yes" ]; then
+        echo "000099/mnt/smb/电视剧/${filenamelist[$vindex]}" >> ${playlist}
+        echo "添加/mnt/smb/电视剧/{filenamelist[$vindex]}成功"  
+      fi
+      read -p "还要继续添加吗(yes/no/y/n)?:" yes_addagain
+      if [ "$yes_addagain" = "n" ] || [ "$yes_addagain" = "no" ]; then
+        break
+      fi
+    fi
+  done
 }
 
 # 停止推流
@@ -233,27 +279,37 @@ stream_stop(){
 echo -e "${yellow} FFmpeg无人值守直播工具(version 1.1) ${font}"
 echo -e "${green} 1.安装FFmpeg (机器要安装FFmpeg才能正常推流) ${font}"
 echo -e "${green} 2.开始无人值守循环推流 ${font}"
-echo -e "${green} 3.开始无人值守循环推流 ${font}"
-echo -e "${green} 4.停止推流 ${font}"
+echo -e "${green} 3.开始播放的单个目录 ${font}"
+echo -e "${green} 4.增加视频目录 ${font}"
+echo -e "${green} 5.停止推流 ${font}"
 start_menu(){
     echo $1
     echo $2
     if [ "$1" = "" ]; then
       read -p "请输入数字(1-3),选择你要进行的操作:" num
+      if [ "$num" = "2" ]; then
+        read -p "请输入播放模式(seq, random):" param
+      elif [ "$num" = "3" ]; then
+        read -p "请输入视频目录:" param
+      fi
     else
       num=$1
+      param=$2
     fi
     case "$num" in
         1)
         ffmpeg_install
         ;;
         2)
-        stream_start "$2"
+        stream_start "${param}"
         ;;
         3)
-        stream_play_main "000099$2"
+        stream_play_main "000099${param}"
         ;;
         4)
+        stream_append
+        ;;
+        5)
         stream_stop
         ;;
         *)
@@ -264,3 +320,4 @@ start_menu(){
 
 # 运行开始菜单
 start_menu $1 $2
+
