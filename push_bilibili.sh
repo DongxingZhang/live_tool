@@ -8,8 +8,9 @@ green='\033[0;32m'
 yellow='\033[0;33m'
 font="\033[0m"
 # 定义推流地址和推流码
-#rtmp="rtmp://live-push.bilivideo.com/live-bvc/?streamname=live_97540856_1852534&key=a042d1eb6f69ca88b16f4fb9bf9a5435&schedule=rtmp&pflag=1"
 rtmp="rtmp://www.tomandjerry.work/live/livestream"
+rtmp="rtmp://live-push.bilivideo.com/live-bvc/?streamname=live_97540856_1852534&key=a042d1eb6f69ca88b16f4fb9bf9a5435&schedule=rtmp&pflag=1"
+
 # 配置水印文件
 image=
 playlist=`pwd`/playlist.m3u
@@ -48,6 +49,11 @@ get_stream_track_decode(){
    echo ${track}
 }
 
+get_duration(){
+   duration=`ffprobe -loglevel repeat+level+warning  -i "$1" -show_entries format=duration -v quiet -of csv="p=0"`
+   echo ${duration}
+}
+
 
 stream_play(){
     file=$1
@@ -83,6 +89,8 @@ stream_play(){
       video_format="delogo=x=965:y=40:w=75:h=60:show=0,eq=contrast=1:brightness=0.2,curves=preset=lighter"
     elif [ "$video_type" = "TVB1" ];then
       video_format="delogo=x=400:y=30:w=75:h=60:show=0,eq=contrast=1:brightness=0.2,curves=preset=lighter"
+    elif [ "$video_type" = "TVB2" ];then
+      video_format="delogo=535:y=30:w=75:h=60:show=0,eq=contrast=1:brightness=0.2,curves=preset=lighter"
     else
       video_format="eq=contrast=1:brightness=0.2,curves=preset=lighter"
     fi
@@ -93,6 +101,11 @@ stream_play(){
     audio_track_decode=$(get_stream_track "${file}" "audio")
     sub_track=$(get_stream_track "${file}" "subtitle")
     sub_track_decode=$(get_stream_track "${file}" "subtitle")
+    total=$(get_duration "${file}")
+    total=${total%.*}
+    echo ${total}
+    duration=$(expr $total - 600)
+    echo ${duration}
     
     if [ "$video_track" = "" ];then
       echo "${file} 没有视频轨道"
@@ -122,19 +135,21 @@ stream_play(){
       echo -e "${yellow} 你选择不添加水印,程序将开始推流. ${font}"
       if [ "${maps}" = "" ]; then
         echo ffmpeg -loglevel ${logging} -re -i "$file" -map ${mapv} -map ${mapa} -preset ${preset_decode_speed} -vf "${video_format}" -vcodec libx264 -g 60 -b:v 6000k -c:a aac -b:a 128k -strict -2 -f flv ${rtmp} 
+        echo ffmpeg -loglevel ${logging} -re -i "$file"  -map ${mapv} -map ${mapa} -preset ${preset_decode_speed} -vf "${video_format}" -vcodec libx264 -g 60 -b:v 6000k -c:a aac -b:a 128k -strict -2 -f flv ${rtmp}
         ffmpeg -loglevel ${logging} -re -i "$file" -map ${mapv} -map ${mapa} -preset ${preset_decode_speed} -vf "${video_format}" -vcodec libx264 -g 60 -b:v 6000k -c:a aac -b:a 128k -strict -2 -f flv ${rtmp}
       else
         echo ffmpeg -loglevel ${logging} -re -i "$file" -map ${mapv} -map ${mapa} -preset ${preset_decode_speed} -vf "${video_format}" -vcodec libx264 -g 60 -b:v 6000k -c:a aac -b:a 128k -strict -2 -f flv ${rtmp} 
+        echo ffmpeg -loglevel ${logging} -re -i "$file" -map ${mapv} -map ${mapa} -preset ${preset_decode_speed} -vf "${video_format}" -vcodec libx264 -g 60 -b:v 6000k -c:a aac -b:a 128k -strict -2 -f flv ${rtmp}
         ffmpeg -loglevel ${logging} -re -i "$file" -map ${mapv} -map ${mapa} -preset ${preset_decode_speed} -vf "${video_format}" -vcodec libx264 -g 60 -b:v 6000k -c:a aac -b:a 128k -strict -2 -f flv ${rtmp}
       fi
     else
       echo -e "${yellow} 添加水印完成,程序将开始推流. ${font}" 
       watermark="overlay=W-w-5:5"
       if [ "${maps}" = "" ]; then
-        echo ffmpeg -re -loglevel ${logging} -i "$file" -map ${mapv} -map ${mapa} -preset ${preset_decode_speed} -vf "${video_format}"  -i "${image}" -filter_complex "${watermark}" -c:v libx264 -c:a aac -b:a 192k  -strict -2 -f flv ${rtmp} 
-        ffmpeg -re -loglevel ${logging} -i "$file" -map ${mapv} -map ${mapa} -preset ${preset_decode_speed} -vf "${video_format}"  -i "${image}" -filter_complex "${watermark}" -c:v libx264 -c:a aac -b:a 192k  -strict -2 -f flv ${rtmp}
+        echo ffmpeg -re -loglevel ${logging} -i "$file"  -map ${mapv} -map ${mapa} -preset ${preset_decode_speed} -vf "${video_format}"  -i "${image}" -filter_complex "${watermark}" -c:v libx264 -c:a aac -b:a 192k  -strict -2 -f flv ${rtmp}
+        ffmpeg -re -loglevel ${logging} -i "$file"  -map ${mapv} -map ${mapa} -preset ${preset_decode_speed} -vf "${video_format}"  -i "${image}" -filter_complex "${watermark}" -c:v libx264 -c:a aac -b:a 192k  -strict -2 -f flv ${rtmp}
       else
-        echo ffmpeg -re -loglevel ${logging} -i "$file" -map ${mapv} -map ${mapa}  -preset ${preset_decode_speed} -vf "${video_format}"  -i "${image}" -filter_complex "${watermark}" -c:v libx264 -c:a aac -b:a 192k  -strict -2 -f flv ${rtmp} 
+        echo ffmpeg -re -loglevel ${logging} -i "$file"  -map ${mapv} -map ${mapa} -preset ${preset_decode_speed} -vf "${video_format}"  -i "${image}" -filter_complex "${watermark}" -c:v libx264 -c:a aac -b:a 192k  -strict -2 -f flv ${rtmp}
         ffmpeg -re -loglevel ${logging} -i "$file" -map ${mapv} -map ${mapa} -preset ${preset_decode_speed} -vf "${video_format}"  -i "${image}" -filter_complex "${watermark}" -c:v libx264 -c:a aac -b:a 192k  -strict -2 -f flv ${rtmp}
       fi
     fi
