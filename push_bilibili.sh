@@ -8,7 +8,7 @@ green='\033[0;32m'
 yellow='\033[0;33m'
 font="\033[0m"
 # 定义推流地址和推流码
-rtmp="rtmp://www.tomandjerry.work/live/livestream"
+#rtmp="rtmp://www.tomandjerry.work/live/livestream"
 rtmp="rtmp://live-push.bilivideo.com/live-bvc/?streamname=live_97540856_1852534&key=a042d1eb6f69ca88b16f4fb9bf9a5435&schedule=rtmp&pflag=1"
 
 # 配置水印文件
@@ -17,6 +17,7 @@ curdir=`pwd`
 playlist=${curdir}/playlist.m3u
 playlist_done=${curdir}/playlist_done.m3u
 waiting=/mnt/smb/videos
+running=1
 
 
 echo "推流地址和推流码:${rtmp}"
@@ -64,8 +65,16 @@ stream_play(){
     subtitle=$4
     file_count=$5
     cur_file=$6
+    mode=$7
+    echo "$mode"	
 
-    killall ffmpeg
+    if [ "${mode}" != "test" ];then
+        killall ffmpeg
+    fi
+
+    if [ "${running}" = "0" ]; then
+        return
+    fi
     
     # 文件超过50GB不要播放
     maxsize=50000000000
@@ -109,12 +118,16 @@ stream_play(){
     yy=0
     hours=$(TZ=Asia/Shanghai date +%H)
     if [ ${hours} -ge 6 ] || [ ${hours} -le 1 ];then
-        content="24h轮播(第${cur_file}集/共${file_count}集)"
+        if [ "${cur_file}" = "${file_count}" ]; then
+            content="24h轮播(大结局/共${file_count}集)"
+        else
+            content="24h轮播(第${cur_file}集/共${file_count}集)"
+        fi
     else
         content="凌晨1点到6点休息"
     fi    
     if [ "${content}" != "" ]; then
-        drawtext="drawtext=fontsize=30:x=${xx}:y=${yy}:fontcolor=red:text=${content}:fontfile=${curdir}/simhei.ttf"
+        drawtext="drawtext=fontsize=50:x=${xx}:y=${yy}:fontcolor=blue:text=${content}:fontfile=${curdir}/simhei.ttf"
         video_format="${video_format},${drawtext}"
     fi
     
@@ -160,23 +173,34 @@ stream_play(){
         echo -e "${yellow} 你选择不添加水印,程序将开始推流. ${font}"
         if [ "${maps}" = "" ]; then
           echo ffmpeg  -re -i "$file"  -map ${mapv} -map ${mapa} -preset ${preset_decode_speed} -vf "${video_format}" -vcodec libx264 -g 60 -b:v 6000k -c:a aac -b:a 128k -strict -2 -f flv ${rtmp}
-          ffmpeg -re -i "$file" -map ${mapv} -map ${mapa} -preset ${preset_decode_speed} -vf "${video_format}" -vcodec libx264 -g 60 -b:v 6000k -c:a aac -b:a 128k -strict -2 -f flv ${rtmp}
+          if [ "${mode}" != "test" ];then
+              ffmpeg -re -i "$file" -map ${mapv} -map ${mapa} -preset ${preset_decode_speed} -vf "${video_format}" -vcodec libx264 -g 60 -b:v 6000k -c:a aac -b:a 128k -strict -2 -f flv ${rtmp}
+          fi
         else
           echo ffmpeg -re -i "$file" -map ${mapv} -map ${mapa} -preset ${preset_decode_speed} -vf "${video_format}" -vcodec libx264 -g 60 -b:v 6000k -c:a aac -b:a 128k -strict -2 -f flv ${rtmp}
-          ffmpeg  -re -i "$file" -map ${mapv} -map ${mapa} -preset ${preset_decode_speed} -vf "${video_format}" -vcodec libx264 -g 60 -b:v 6000k -c:a aac -b:a 128k -strict -2 -f flv ${rtmp}
+          if [ "${mode}" != "test" ];then
+              ffmpeg  -re -i "$file" -map ${mapv} -map ${mapa} -preset ${preset_decode_speed} -vf "${video_format}" -vcodec libx264 -g 60 -b:v 6000k -c:a aac -b:a 128k -strict -2 -f flv ${rtmp}
+          fi
         fi
     else
         echo -e "${yellow} 添加水印完成,程序将开始推流. ${font}" 
         watermark="overlay=W-w-5:5"
         if [ "${maps}" = "" ]; then
           echo ffmpeg -re  -i "$file"  -map ${mapv} -map ${mapa} -preset ${preset_decode_speed} -vf "${video_format}"  -i "${image}" -filter_complex "${watermark}" -c:v libx264 -c:a aac -b:a 192k  -strict -2 -f flv ${rtmp}
-          ffmpeg -re -i "$file"  -map ${mapv} -map ${mapa} -preset ${preset_decode_speed} -vf "${video_format}"  -i "${image}" -filter_complex "${watermark}" -c:v libx264 -c:a aac -b:a 192k  -strict -2 -f flv ${rtmp}
+          if [ "${mode}" != "test" ];then
+              ffmpeg -re -i "$file"  -map ${mapv} -map ${mapa} -preset ${preset_decode_speed} -vf "${video_format}"  -i "${image}" -filter_complex "${watermark}" -c:v libx264 -c:a aac -b:a 192k  -strict -2 -f flv ${rtmp}
+          fi
         else
           echo ffmpeg -re -i "$file"  -map ${mapv} -map ${mapa} -preset ${preset_decode_speed} -vf "${video_format}"  -i "${image}" -filter_complex "${watermark}" -c:v libx264 -c:a aac -b:a 192k  -strict -2 -f flv ${rtmp}
-          ffmpeg -re -i "$file" -map ${mapv} -map ${mapa} -preset ${preset_decode_speed} -vf "${video_format}"  -i "${image}" -filter_complex "${watermark}" -c:v libx264 -c:a aac -b:a 192k  -strict -2 -f flv ${rtmp}
+          if [ "${mode}" != "test" ];then
+              ffmpeg -re -i "$file" -map ${mapv} -map ${mapa} -preset ${preset_decode_speed} -vf "${video_format}"  -i "${image}" -filter_complex "${watermark}" -c:v libx264 -c:a aac -b:a 192k  -strict -2 -f flv ${rtmp}
+          fi
         fi
     fi
-    if [ "$video_type" != "9999" ];then
+    if [ "${running}" = "0" ]; then
+        return
+    fi
+    if [ "$video_type" != "9999" ] && [ "${mode}" != "test" ]; then
         echo "$file" >> "${playlist_done}"
     fi
 }
@@ -186,6 +210,7 @@ stream_play_main(){
     line=`echo ${line} | tr -d '\r'`
     line=`echo ${line} | tr -d '\n'`
     play_mode=$2
+    mode=$3
    
     # 判断是否要跳过   
     flag=${line:0:1}
@@ -204,14 +229,17 @@ stream_play_main(){
         file_count=`ls -l $line  |grep "^-"|wc -l`
         cur_file=0
         for subdirfile in "$line"/*; do
+            if [ "${running}" = "0" ]; then
+                return
+            fi
             echo $subdirfile 
             cur_file=$(expr $cur_file + 1)
             if [ "${play_mode}" = "random"  ] && [[ -e "${playlist_done}" ]] && cat "${playlist_done}" | grep "$subdirfile" > /dev/null; then
                 echo play $subdirfile  done
                 continue
             fi
-            echo start playing $subdirfile       
-            stream_play "${subdirfile}" "${video_type}" "${audio}" "${subtitle}" "${file_count}" "${cur_file}"       
+            echo start playing $subdirfile  
+            stream_play "${subdirfile}" "${video_type}" "${audio}" "${subtitle}" "${file_count}" "${cur_file}" "${mode}"    
             if [ "${play_mode}" = "random"  ]; then
                 echo "next folder"
                 break
@@ -219,8 +247,11 @@ stream_play_main(){
         done
         echo "播放完毕"
     elif [[ -f "${line}" ]] ; then
+        if [ "${running}" = "0" ]; then
+            return
+        fi
+        stream_play "${line}" "${video_type}" "${audio}" "${subtitle}" 1 1 "${mode}"
         echo "播放完毕"
-        stream_play "${line}" "${video_type}" "${audio}" "${subtitle}" 1 1
     else
         echo "目录或者文件${line}不识别"
     fi
@@ -229,6 +260,7 @@ stream_play_main(){
 
 stream_start(){    
     play_mode=$1
+    mode=$2
 
     if [[ $rtmp =~ "rtmp://" ]];then
         echo -e "${green} 推流地址输入正确,程序将进行下一步操作. ${font}"
@@ -246,14 +278,17 @@ stream_start(){
           if [ ${hours} -ge 6 ] || [ ${hours} -le 1 ];then
               break
           fi
-          stream_play_main "999999${waiting}"
+          stream_play_main "999999${waiting}" seq "${mode}"
       done
       for line in `cat ${playlist}`
       do
+          if [ "${running}" = "0" ]; then
+              return
+          fi
           echo "File:${line}"
-	        date
-          stream_play_main "${line}" "${play_mode}"
-	        date
+	  date
+          stream_play_main "${line}" "${play_mode}" "${mode}"
+	  date
       done
       # 等待60秒钟再一次读取播放列表
       sleep 60
@@ -291,6 +326,7 @@ stream_append(){
 
 # 停止推流
 stream_stop(){
+    running=0
     killall ffmpeg
 }
 
@@ -304,6 +340,8 @@ echo -e "${green} 5.停止推流 ${font}"
 start_menu(){
     echo $1
     echo $2
+    echo $3
+
     if [ "$1" = "" ]; then
         read -p "请输入数字(1-3),选择你要进行的操作:" num
         if [ "$num" = "2" ]; then
@@ -314,13 +352,14 @@ start_menu(){
     else
         num=$1
         param=$2
+        mode=$3
     fi
     case "$num" in
         1)
         ffmpeg_install
         ;;
         2)
-        stream_start "${param}"
+        stream_start "${param}" "${mode}"
         ;;
         3)
         stream_play_main "000099${param}"
@@ -338,5 +377,5 @@ start_menu(){
 	}
 
 # 运行开始菜单
-start_menu $1 $2
+start_menu $1 $2 $3
 
