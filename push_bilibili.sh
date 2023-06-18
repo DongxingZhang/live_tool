@@ -42,6 +42,28 @@ ffmpeg_install(){
     fi
 }
 
+get_rest(){
+    hours=$(TZ=Asia/Shanghai date +%H)
+    #测试是否为休息时间
+    if [ ${hours} -ge 6 ] || [ ${hours} -le 1 ];then
+        echo playing
+    else
+        echo rest
+    fi
+}
+
+play_waiting(){
+    mode=$1
+    while true
+    do
+        rest=$(get_rest)
+        if [ "${rest}" = "playing" ];then
+            break
+        fi
+        stream_play_main "999999${waiting}" seq "${mode}"
+    done
+}
+
 get_stream_track(){
     track=`ffprobe -loglevel repeat+level+warning  -i "$1" -show_streams -print_format csv | awk -F, '{print $1,$2,$3,$6}' | grep "$2" | awk 'NR==1{print $2}'`
     echo ${track}
@@ -116,8 +138,8 @@ stream_play(){
     # 叠加字体
     xx=0
     yy=0
-    hours=$(TZ=Asia/Shanghai date +%H)
-    if [ ${hours} -ge 6 ] || [ ${hours} -le 1 ];then
+    rest=$(get_rest)
+    if [ "${rest}" = "playing" ];then
         if [ "${cur_file}" = "${file_count}" ]; then
             content="24h轮播(大结局/共${file_count}集)"
         else
@@ -127,7 +149,7 @@ stream_play(){
         content="凌晨1点到6点休息"
     fi    
     if [ "${content}" != "" ]; then
-        drawtext="drawtext=fontsize=50:x=${xx}:y=${yy}:fontcolor=blue:text=${content}:fontfile=${curdir}/simhei.ttf"
+        drawtext="drawtext=fontsize=50:x=${xx}:y=${yy}:fontcolor=red:text=${content}:fontfile=${curdir}/simhei.ttf"
         video_format="${video_format},${drawtext}"
     fi
     
@@ -244,6 +266,11 @@ stream_play_main(){
                 echo "next folder"
                 break
             fi
+            #播放完毕测试是否为休息时间，如果是则播放休息视频
+            rest=$(get_rest)
+            if [ "${rest}" = "playing" ];then
+                break
+            fi
         done
         echo "播放完毕"
     elif [[ -f "${line}" ]] ; then
@@ -272,14 +299,6 @@ stream_start(){
 
     while true
     do
-      while true
-      do
-          hours=$(TZ=Asia/Shanghai date +%H)
-          if [ ${hours} -ge 6 ] || [ ${hours} -le 1 ];then
-              break
-          fi
-          stream_play_main "999999${waiting}" seq "${mode}"
-      done
       for line in `cat ${playlist}`
       do
           if [ "${running}" = "0" ]; then
@@ -288,6 +307,7 @@ stream_start(){
           echo "File:${line}"
 	  date
           stream_play_main "${line}" "${play_mode}" "${mode}"
+          play_waiting "${mode}"
 	  date
       done
       # 等待60秒钟再一次读取播放列表
@@ -322,6 +342,7 @@ stream_append(){
             fi
         fi
     done
+    cat ${playlist}
 }
 
 # 停止推流
