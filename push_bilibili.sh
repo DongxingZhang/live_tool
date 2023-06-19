@@ -10,6 +10,7 @@ font="\033[0m"
 # 定义推流地址和推流码
 #rtmp="rtmp://www.tomandjerry.work/live/livestream"
 rtmp="rtmp://live-push.bilivideo.com/live-bvc/?streamname=live_97540856_1852534&key=a042d1eb6f69ca88b16f4fb9bf9a5435&schedule=rtmp&pflag=1"
+#rtmp="rtmp://127.0.0.1:1935/live/1"
 
 # 配置水印文件
 image=
@@ -18,6 +19,26 @@ playlist=${curdir}/playlist.m3u
 playlist_done=${curdir}/playlist_done.m3u
 waiting=/mnt/smb/videos
 running=1
+
+#休息时间
+rest_start=21
+rest_end=22
+
+#videos下一个视频
+next_video=0
+get_videos(){
+    video_no=0
+    for subdirfile in ${waiting}/*; do
+        filename=`echo ${subdirfile} | awk -F "/" '{print $NF}'`
+        filenamelist[$video_no]=${filename}
+        video_no=$(expr $video_no + 1)        
+    done
+    video_lengh=#filenamelist[@]
+    if [ "${next_video}" = "${video_lengh}" ];then
+        next_video = 0
+    fi    
+    echo "${waiting}/${filenamelist[$next_video]}"
+}
 
 
 echo "推流地址和推流码:${rtmp}"
@@ -45,10 +66,10 @@ ffmpeg_install(){
 get_rest(){
     hours=$(TZ=Asia/Shanghai date +%H)
     #测试是否为休息时间
-    if [ ${hours} -ge 6 ] || [ ${hours} -le 1 ];then
-        echo playing
-    else
+    if [ ${hours} -ge ${rest_start} ] && [ ${hours} -le ${rest_end} ];then
         echo rest
+    else    
+        echo playing
     fi
 }
 
@@ -57,10 +78,11 @@ play_waiting(){
     while true
     do
         rest=$(get_rest)
-        if [ "${rest}" = "playing" ];then
+        if [ "${rest}" = "rest" ];then
+            stream_play_main "999999${waiting}" seq "${mode}"
+        else
             break
-        fi
-        stream_play_main "999999${waiting}" seq "${mode}"
+        fi        
     done
 }
 
@@ -132,21 +154,24 @@ stream_play(){
         video_format="delogo=x=80:y=50:w=155:h=120:show=0,eq=contrast=1:brightness=0.15,curves=preset=lighter"
     elif [ "$video_type" = "TRB0" ];then
         video_format="delogo=x=5:y=5:w=1270:h=40:show=0,delogo=x=1050:y=610:w=200:h=100:show=0,delogo=x=250:y=580:w=750:h=120:show=0,eq=contrast=1:brightness=0.15,curves=preset=lighter"
+    elif [ "$video_type" = "CCT1" ];then #去掉CCTV6的标题
+        video_format="scale=w=1080:h=-1,delogo=x=945:y=40:w=75:h=60:show=0,delogo=x=945:y=500:w=75:h=60:show=0,delogo=x=60:y=40:w=200:h=80:show=0,delogo=x=20:y=490:w=400:h=100:show=0,delogo=x=945:y=340:w=75:h=100:show=0,eq=contrast=1:brightness=0.15,curves=preset=lighter"
     else
         video_format="eq=contrast=1:brightness=0.15,curves=preset=lighter"
     fi
+    
     # 叠加字体
     xx=0
     yy=0
     rest=$(get_rest)
-    if [ "${rest}" = "playing" ];then
+    if [ "${rest}" = "rest" ];then
+        content="${rest_start}点到${rest_end}点休息"
+    else
         if [ "${cur_file}" = "${file_count}" ]; then
             content="24h轮播(大结局/共${file_count}集)"
         else
             content="24h轮播(第${cur_file}集/共${file_count}集)"
         fi
-    else
-        content="凌晨1点到6点休息"
     fi    
     if [ "${content}" != "" ]; then
         drawtext="drawtext=fontsize=50:x=${xx}:y=${yy}:fontcolor=red:text=${content}:fontfile=${curdir}/simhei.ttf"
@@ -189,42 +214,54 @@ stream_play(){
         maps="0:${subtitle}"
     fi
     
-    echo ${mapv}, ${mapa}, ${maps}
+    echo ${mapv}, ${mapa}, ${maps}   
+    
     
     if [ "$image" = "" ];then
         echo -e "${yellow} 你选择不添加水印,程序将开始推流. ${font}"
         if [ "${maps}" = "" ]; then
-          echo ffmpeg  -re -i "$file"  -map ${mapv} -map ${mapa} -preset ${preset_decode_speed} -vf "${video_format}" -vcodec libx264 -g 60 -b:v 6000k -c:a aac -b:a 128k -strict -2 -f flv ${rtmp}
+          echo ffmpeg -loglevel "${logging}"  -re -i "$file"  -map ${mapv} -map ${mapa} -preset ${preset_decode_speed} -vf "${video_format}" -vcodec libx264 -g 60 -b:v 6000k -c:a aac -b:a 128k -strict -2 -f flv ${rtmp}
           if [ "${mode}" != "test" ];then
-              ffmpeg -re -i "$file" -map ${mapv} -map ${mapa} -preset ${preset_decode_speed} -vf "${video_format}" -vcodec libx264 -g 60 -b:v 6000k -c:a aac -b:a 128k -strict -2 -f flv ${rtmp}
+              ffmpeg -loglevel "${logging}" -re -i "$file" -map ${mapv} -map ${mapa} -preset ${preset_decode_speed} -vf "${video_format}" -vcodec libx264 -g 60 -b:v 6000k -c:a aac -b:a 128k -strict -2 -f flv ${rtmp}
           fi
         else
-          echo ffmpeg -re -i "$file" -map ${mapv} -map ${mapa} -preset ${preset_decode_speed} -vf "${video_format}" -vcodec libx264 -g 60 -b:v 6000k -c:a aac -b:a 128k -strict -2 -f flv ${rtmp}
+          echo ffmpeg -loglevel "${logging}" -re -i "$file" -map ${mapv} -map ${mapa} -preset ${preset_decode_speed} -vf "${video_format}" -vcodec libx264 -g 60 -b:v 6000k -c:a aac -b:a 128k -strict -2 -f flv ${rtmp}
           if [ "${mode}" != "test" ];then
-              ffmpeg  -re -i "$file" -map ${mapv} -map ${mapa} -preset ${preset_decode_speed} -vf "${video_format}" -vcodec libx264 -g 60 -b:v 6000k -c:a aac -b:a 128k -strict -2 -f flv ${rtmp}
+              ffmpeg -loglevel "${logging}" -re -i "$file" -map ${mapv} -map ${mapa} -preset ${preset_decode_speed} -vf "${video_format}" -vcodec libx264 -g 60 -b:v 6000k -c:a aac -b:a 128k -strict -2 -f flv ${rtmp}
           fi
         fi
     else
         echo -e "${yellow} 添加水印完成,程序将开始推流. ${font}" 
         watermark="overlay=W-w-5:5"
         if [ "${maps}" = "" ]; then
-          echo ffmpeg -re  -i "$file"  -map ${mapv} -map ${mapa} -preset ${preset_decode_speed} -vf "${video_format}"  -i "${image}" -filter_complex "${watermark}" -c:v libx264 -c:a aac -b:a 192k  -strict -2 -f flv ${rtmp}
+          echo ffmpeg -loglevel "${logging}" -re  -i "$file"  -map ${mapv} -map ${mapa} -preset ${preset_decode_speed} -vf "${video_format}"  -i "${image}" -filter_complex "${watermark}" -c:v libx264 -c:a aac -b:a 192k  -strict -2 -f flv ${rtmp}
           if [ "${mode}" != "test" ];then
-              ffmpeg -re -i "$file"  -map ${mapv} -map ${mapa} -preset ${preset_decode_speed} -vf "${video_format}"  -i "${image}" -filter_complex "${watermark}" -c:v libx264 -c:a aac -b:a 192k  -strict -2 -f flv ${rtmp}
+              ffmpeg -loglevel "${logging}" -re -i "$file"  -map ${mapv} -map ${mapa} -preset ${preset_decode_speed} -vf "${video_format}"  -i "${image}" -filter_complex "${watermark}" -c:v libx264 -c:a aac -b:a 192k  -strict -2 -f flv ${rtmp}
           fi
         else
-          echo ffmpeg -re -i "$file"  -map ${mapv} -map ${mapa} -preset ${preset_decode_speed} -vf "${video_format}"  -i "${image}" -filter_complex "${watermark}" -c:v libx264 -c:a aac -b:a 192k  -strict -2 -f flv ${rtmp}
+          echo ffmpeg -loglevel "${logging}" -re -i "$file"  -map ${mapv} -map ${mapa} -preset ${preset_decode_speed} -vf "${video_format}"  -i "${image}" -filter_complex "${watermark}" -c:v libx264 -c:a aac -b:a 192k  -strict -2 -f flv ${rtmp}
           if [ "${mode}" != "test" ];then
-              ffmpeg -re -i "$file" -map ${mapv} -map ${mapa} -preset ${preset_decode_speed} -vf "${video_format}"  -i "${image}" -filter_complex "${watermark}" -c:v libx264 -c:a aac -b:a 192k  -strict -2 -f flv ${rtmp}
+              ffmpeg -loglevel "${logging}" -re -i "$file" -map ${mapv} -map ${mapa} -preset ${preset_decode_speed} -vf "${video_format}"  -i "${image}" -filter_complex "${watermark}" -c:v libx264 -c:a aac -b:a 192k  -strict -2 -f flv ${rtmp}
           fi
         fi
     fi
+    
+    if [ "$video_type" != "9999" ] && [ "${mode}" != "test" ] && [ "$?" = "0" ]; then
+        echo "$file" >> "${playlist_done}"
+        # 播放一个视频
+        ffmpeg -loglevel "${logging}" -re -i "$(get_videos)" -preset ${preset_decode_speed} -vf eq=contrast=1:brightness=0.15,curves=preset=lighter -vcodec libx264 -g 60 -b:v 6000k -c:a aac -b:a 128k -strict -2 -f flv ${rtmp}
+        next_video=$(expr $next_video + 1)
+    fi
+            
+    if [ "${mode}" != "test" ];then
+        killall ffmpeg
+    fi
+    
     if [ "${running}" = "0" ]; then
         return
     fi
-    if [ "$video_type" != "9999" ] && [ "${mode}" != "test" ]; then
-        echo "$file" >> "${playlist_done}"
-    fi
+    
+
 }
 
 stream_play_main(){
@@ -245,6 +282,7 @@ stream_play_main(){
     subtitle=${line:5:1}
     line=${line:6}
     echo $line
+    
     if [[ -d "${line}" ]];then
         echo $line
         echo $play_mode
@@ -266,9 +304,9 @@ stream_play_main(){
                 echo "next folder"
                 break
             fi
-            #播放完毕测试是否为休息时间，如果是则播放休息视频
+            #播放完毕测试是否为休息时间，如果是则退出播放本目录
             rest=$(get_rest)
-            if [ "${rest}" = "playing" ];then
+            if [ "${rest}" = "rest" ] && [ "${video_type}" != "9999" ];then
                 break
             fi
         done
@@ -297,6 +335,7 @@ stream_start(){
         exit 1
     fi 
 
+
     while true
     do
       for line in `cat ${playlist}`
@@ -305,13 +344,17 @@ stream_start(){
               return
           fi
           echo "File:${line}"
-	  date
-          stream_play_main "${line}" "${play_mode}" "${mode}"
           play_waiting "${mode}"
-	  date
+	        date
+          stream_play_main "${line}" "${play_mode}" "${mode}"
+          date
+          play_waiting "${mode}"
+	        #播放一个目录以后重新读取文件目录
+	        continue
       done
-      # 等待60秒钟再一次读取播放列表
-      sleep 60
+      # 等待1秒钟再一次读取播放列表
+      sleep 1
+      echo “再次读取下一个目录......................”
     done
 }
 
@@ -333,13 +376,20 @@ stream_append(){
             echo '你选择了:'${filenamelist[$vindex]}
             read -p "输入(yes/no/y/n)确认:" yes
             if [ "$yes" = "y" ] || [ "$yes" = "yes" ]; then
-                echo "000099/mnt/smb/电视剧/${filenamelist[$vindex]}" >> ${playlist}
-                echo "添加/mnt/smb/电视剧/{filenamelist[$vindex]}成功"  
+                # 已经存在不要添加
+                if [[ -e "${playlist}" ]] && cat "${playlist}" | grep "${filenamelist[$vindex]}" > /dev/null; then
+                    echo "已经添加过/mnt/smb/电视剧/${filenamelist[$vindex]},不要再添加."
+                else
+                    echo "000099/mnt/smb/电视剧/${filenamelist[$vindex]}" >> ${playlist}
+                    echo "添加/mnt/smb/电视剧/${filenamelist[$vindex]}成功"  
+                fi                
             fi
             read -p "还要继续添加吗(yes/no/y/n)?:" yes_addagain
             if [ "$yes_addagain" = "n" ] || [ "$yes_addagain" = "no" ]; then
                 break
             fi
+        elif [ "$vindex" = "q"  ]; then
+            break
         fi
     done
     cat ${playlist}
