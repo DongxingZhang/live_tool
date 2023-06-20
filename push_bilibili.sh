@@ -9,8 +9,9 @@ yellow='\033[0;33m'
 font="\033[0m"
 # 定义推流地址和推流码
 #rtmp="rtmp://www.tomandjerry.work/live/livestream"
-rtmp="rtmp://live-push.bilivideo.com/live-bvc/?streamname=live_97540856_1852534&key=a042d1eb6f69ca88b16f4fb9bf9a5435&schedule=rtmp&pflag=1"
 #rtmp="rtmp://127.0.0.1:1935/live/1"
+rtmp="rtmp://live-push.bilivideo.com/live-bvc/?streamname=live_97540856_1852534&key=a042d1eb6f69ca88b16f4fb9bf9a5435&schedule=rtmp&pflag=1"
+
 
 # 配置水印文件
 image=
@@ -21,11 +22,10 @@ waiting=/mnt/smb/videos
 running=1
 
 #休息时间
-rest_start=21
-rest_end=22
+rest_start=0
+rest_end=6
 
 #videos下一个视频
-next_video=0
 get_videos(){
     video_no=0
     for subdirfile in ${waiting}/*; do
@@ -34,12 +34,14 @@ get_videos(){
         video_no=$(expr $video_no + 1)        
     done
     video_lengh=#filenamelist[@]
-    if [ "${next_video}" = "${video_lengh}" ];then
-        next_video = 0
-    fi    
+    next_video=`cat ~/myvideono`
+    if [ "${next_video}" = "" ] || [ "${next_video}" = "${video_lengh}" ]; then
+        next_video=0
+    fi
+    next_next_video=$(expr $next_video + 1)
+    echo "${next_next_video}" > ~/myvideono
     echo "${waiting}/${filenamelist[$next_video]}"
 }
-
 
 echo "推流地址和推流码:${rtmp}"
 echo "水印文件:${image}"
@@ -79,7 +81,7 @@ play_waiting(){
     do
         rest=$(get_rest)
         if [ "${rest}" = "rest" ];then
-            stream_play_main "999999${waiting}" seq "${mode}"
+            stream_play "$(get_videos)" 9999 9 9 1 1 "${mode}"
         else
             break
         fi        
@@ -147,7 +149,7 @@ stream_play(){
     elif [ "$video_type" = "TVB1" ];then
         video_format="delogo=x=400:y=30:w=75:h=60:show=0,eq=contrast=1:brightness=0.15,curves=preset=lighter"
     elif [ "$video_type" = "TVB2" ];then
-        video_format="delogo=x=535:y=30:w=75:h=60:show=0,eq=contrast=1:brightness=0.15,curves=preset=lighter"
+        video_format="delogo=x=525:y=30:w=85:h=60:show=0,eq=contrast=1:brightness=0.15,curves=preset=lighter"
     elif [ "$video_type" = "TVB3" ];then
         video_format="delogo=x=795:y=30:w=75:h=60:show=0,eq=contrast=1:brightness=0.15,curves=preset=lighter"
     elif [ "$video_type" = "CCTV" ];then
@@ -156,6 +158,8 @@ stream_play(){
         video_format="delogo=x=5:y=5:w=1270:h=40:show=0,delogo=x=1050:y=610:w=200:h=100:show=0,delogo=x=250:y=580:w=750:h=120:show=0,eq=contrast=1:brightness=0.15,curves=preset=lighter"
     elif [ "$video_type" = "CCT1" ];then #去掉CCTV6的标题
         video_format="scale=w=1080:h=-1,delogo=x=945:y=40:w=75:h=60:show=0,delogo=x=945:y=500:w=75:h=60:show=0,delogo=x=60:y=40:w=200:h=80:show=0,delogo=x=20:y=490:w=400:h=100:show=0,delogo=x=945:y=340:w=75:h=100:show=0,eq=contrast=1:brightness=0.15,curves=preset=lighter"
+    elif [ "$video_type" = "ATV0" ];then
+        video_format="delogo=x=560:y=5:w=64:h=68:show=0,delogo=x=560:y=490:w=140:h=45:show=0,eq=contrast=1:brightness=0.15,curves=preset=lighter"
     else
         video_format="eq=contrast=1:brightness=0.15,curves=preset=lighter"
     fi
@@ -167,10 +171,10 @@ stream_play(){
     if [ "${rest}" = "rest" ];then
         content="${rest_start}点到${rest_end}点休息"
     else
-        if [ "${cur_file}" = "${file_count}" ]; then
-            content="24h轮播(大结局/共${file_count}集)"
+        if [ "${cur_file}" = "${file_count}" ] && [ ${file_count} > 1 ] ; then
+            content="大结局"
         else
-            content="24h轮播(第${cur_file}集/共${file_count}集)"
+            content="第${cur_file}集/共${file_count}集"
         fi
     fi    
     if [ "${content}" != "" ]; then
@@ -249,7 +253,10 @@ stream_play(){
     if [ "$video_type" != "9999" ] && [ "${mode}" != "test" ] && [ "$?" = "0" ]; then
         echo "$file" >> "${playlist_done}"
         # 播放一个视频
-        ffmpeg -loglevel "${logging}" -re -i "$(get_videos)" -preset ${preset_decode_speed} -vf eq=contrast=1:brightness=0.15,curves=preset=lighter -vcodec libx264 -g 60 -b:v 6000k -c:a aac -b:a 128k -strict -2 -f flv ${rtmp}
+        video_format="eq=contrast=1:brightness=0.15,curves=preset=lighter"
+        drawtext="drawtext=fontsize=50:x=${xx}:y=${yy}:fontcolor=red:text=听音乐休息一下:fontfile=${curdir}/simhei.ttf"
+        video_format="${video_format},${drawtext}"
+        ffmpeg -loglevel "${logging}" -re -i "$(get_videos)" -preset ${preset_decode_speed} -vf "${video_format}" -vcodec libx264 -g 60 -b:v 6000k -c:a aac -b:a 128k -strict -2 -f flv ${rtmp}
         next_video=$(expr $next_video + 1)
     fi
             
@@ -348,7 +355,6 @@ stream_start(){
 	        date
           stream_play_main "${line}" "${play_mode}" "${mode}"
           date
-          play_waiting "${mode}"
 	        #播放一个目录以后重新读取文件目录
 	        continue
       done
