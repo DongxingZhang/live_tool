@@ -28,18 +28,24 @@ rest_end=6
 #videos下一个视频
 get_videos(){
     video_no=0
+    declare -a filenamelist
     for subdirfile in ${waiting}/*; do
         filename=`echo ${subdirfile} | awk -F "/" '{print $NF}'`
         filenamelist[$video_no]=${filename}
-        video_no=$(expr $video_no + 1)        
+        video_no=$(expr $video_no + 1)   
     done
-    video_lengh=#filenamelist[@]
-    next_video=`cat ~/myvideono`
-    if [ "${next_video}" = "" ] || [ "${next_video}" = "${video_lengh}" ]; then
+    video_lengh=${#filenamelist[@]}
+    touch ./myvideono
+    next_video=`cat ./myvideono`
+
+    if [ "${next_video}" =  "" ]; then
+        next_video=0
+    fi
+    if [ ${next_video} -ge ${video_lengh} ]; then
         next_video=0
     fi
     next_next_video=$(expr $next_video + 1)
-    echo "${next_next_video}" > ~/myvideono
+    echo "${next_next_video}" > ./myvideono
     echo "${waiting}/${filenamelist[$next_video]}"
 }
 
@@ -81,7 +87,7 @@ play_waiting(){
     do
         rest=$(get_rest)
         if [ "${rest}" = "rest" ];then
-            stream_play "$(get_videos)" 9999 9 9 1 1 "${mode}"
+            stream_play "$(get_videos)" "9999" 9 9 1 1 "${mode}"
         else
             break
         fi        
@@ -112,8 +118,12 @@ stream_play(){
     file_count=$5
     cur_file=$6
     mode=$7
-    echo "$mode"	
 
+    if [[ -d "${file}" ]];then
+        return
+    fi
+
+    echo "$mode"	
     if [ "${mode}" != "test" ];then
         killall ffmpeg
     fi
@@ -135,9 +145,8 @@ stream_play(){
         echo "已经播放过视频${file}"
         return
     fi
-    
+   
     echo "推送${file}"
-
     logging="repeat+level+warning"
     preset_decode_speed="ultrafast"
     video_format="eq=contrast=1:brightness=0.2,curves=preset=lighter"
