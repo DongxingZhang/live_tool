@@ -23,7 +23,7 @@ running=1
 
 #休息时间
 rest_start=0
-rest_end=6
+rest_end=5
 
 #videos下一个视频
 get_videos(){
@@ -180,7 +180,7 @@ stream_play(){
     if [ "${rest}" = "rest" ];then
         content="${rest_start}点到${rest_end}点休息"
     else
-        if [ "${cur_file}" = "${file_count}" ] && [ ${file_count} > 1 ] ; then
+        if [ "${cur_file}" = "${file_count}" ] && [ ${file_count} -ge 2 ] ; then
             content="大结局"
         else
             content="第${cur_file}集/共${file_count}集"
@@ -227,8 +227,25 @@ stream_play(){
         maps="0:${subtitle}"
     fi
     
-    echo ${mapv}, ${mapa}, ${maps}   
+    echo ${mapv}, ${mapa}, ${maps}
+
+    if [ "$video_type" != "9999" ] && [ "${mode}" != "test" ]; then
+        while true 
+        do
+            min=$(TZ=Asia/Shanghai date +%M)
+            if [ ${min} -le 59 ] && [ ${min} -ge 35 ];then
+                video_format1="eq=contrast=1:brightness=0.15,curves=preset=lighter"
+                drawtext1="drawtext=fontsize=50:x=${xx}:y=${yy}:fontcolor=red:text=休息一下.整点继续播出:fontfile=${curdir}/simhei.ttf"
+                video_format1="${video_format1},${drawtext1}"
+                ffmpeg -loglevel "${logging}" -re -i "$(get_videos)" -preset ${preset_decode_speed} -vf "${video_format1}" -vcodec libx264 -g 60 -b:v 6000k -c:a aac -b:a 128k -strict -2 -f flv ${rtmp}
+		
+            else
+                break
+            fi
+        done
+    fi
     
+    date1=$(date +"%Y-%m-%d %H:%M:%S") 
     
     if [ "$image" = "" ];then
         echo -e "${yellow} 你选择不添加水印,程序将开始推流. ${font}"
@@ -258,26 +275,16 @@ stream_play(){
           fi
         fi
     fi
-    
-    if [ "$video_type" != "9999" ] && [ "${mode}" != "test" ] && [ "$?" = "0" ]; then
-        echo "$file" >> "${playlist_done}"
-        # 播放一个视频
-        video_format="eq=contrast=1:brightness=0.15,curves=preset=lighter"
-        drawtext="drawtext=fontsize=50:x=${xx}:y=${yy}:fontcolor=red:text=听音乐休息一下:fontfile=${curdir}/simhei.ttf"
-        video_format="${video_format},${drawtext}"
-        ffmpeg -loglevel "${logging}" -re -i "$(get_videos)" -preset ${preset_decode_speed} -vf "${video_format}" -vcodec libx264 -g 60 -b:v 6000k -c:a aac -b:a 128k -strict -2 -f flv ${rtmp}
-        next_video=$(expr $next_video + 1)
-    fi
-            
-    if [ "${mode}" != "test" ];then
-        killall ffmpeg
-    fi
-    
-    if [ "${running}" = "0" ]; then
-        return
-    fi
-    
 
+    date2=$(date +"%Y-%m-%d %H:%M:%S")
+
+    sys_date1=$(date -d "$date1" +%s)
+    sys_date2=$(date -d "$date2" +%s)
+    time_seconds=`expr $sys_date2 - $sys_date1`
+    
+    if [ "$video_type" != "9999" ] && [ "${mode}" != "test" ] && [ "$?" = "0" ] && [ ${time_seconds} -ge 700 ]; then
+        echo "$file" >> "${playlist_done}"
+    fi
 }
 
 stream_play_main(){
@@ -323,7 +330,7 @@ stream_play_main(){
             #播放完毕测试是否为休息时间，如果是则退出播放本目录
             rest=$(get_rest)
             if [ "${rest}" = "rest" ] && [ "${video_type}" != "9999" ];then
-                break
+                play_waiting "${mode}"
             fi
         done
         echo "播放完毕"
@@ -360,12 +367,9 @@ stream_start(){
               return
           fi
           echo "File:${line}"
-          play_waiting "${mode}"
 	        date
           stream_play_main "${line}" "${play_mode}" "${mode}"
           date
-	        #播放一个目录以后重新读取文件目录
-	        continue
       done
       # 等待1秒钟再一次读取播放列表
       sleep 1
@@ -386,7 +390,7 @@ stream_append(){
             echo "[${video_no}]: ${filename}"
         done
         read -p "请输入视频序号:(1-$video_no),:" vindex
-        if [ $vindex -ge 0 ] && [ $vindex -le $video_no  ]; then
+        if [ $vindex -ge 1 ] && [ $vindex -le $video_no  ]; then
             vindex=$(expr $vindex - 1)
             echo '你选择了:'${filenamelist[$vindex]}
             read -p "输入(yes/no/y/n)确认:" yes
