@@ -85,8 +85,7 @@ play_waiting(){
     mode=$1
     while true
     do
-        rest=$(get_rest)
-        if [ "${rest}" = "rest" ];then
+        if [ "$(get_rest)" = "rest" ];then
             stream_play "$(get_videos)" "9999" 9 9 1 1 "${mode}"
         else
             break
@@ -163,6 +162,8 @@ stream_play(){
         video_format="delogo=x=795:y=30:w=75:h=60:show=0,eq=contrast=1:brightness=0.15,curves=preset=lighter"
     elif [ "$video_type" = "CCTV" ];then
         video_format="delogo=x=80:y=50:w=155:h=120:show=0,eq=contrast=1:brightness=0.15,curves=preset=lighter"
+    elif [ "$video_type" = "CCT2" ];then
+        video_format="delogo=x=50:y=45:w=120:h=60:show=0,eq=contrast=1:brightness=0.15,curves=preset=lighter"
     elif [ "$video_type" = "TRB0" ];then
         video_format="delogo=x=5:y=5:w=1270:h=40:show=0,delogo=x=1050:y=610:w=200:h=100:show=0,delogo=x=250:y=580:w=750:h=120:show=0,eq=contrast=1:brightness=0.15,curves=preset=lighter"
     elif [ "$video_type" = "CCT1" ];then #去掉CCTV6的标题
@@ -176,9 +177,8 @@ stream_play(){
     # 叠加字体
     xx=0
     yy=0
-    rest=$(get_rest)
-    if [ "${rest}" = "rest" ];then
-        content="${rest_start}点到${rest_end}点休息"
+    if [ "$(get_rest)" = "rest" ];then
+        content="${rest_start}点到$(expr $rest_end + 1)点休息"
     else
         if [ "${cur_file}" = "${file_count}" ] && [ ${file_count} -ge 2 ] ; then
             content="大结局"
@@ -315,22 +315,17 @@ stream_play_main(){
             if [ "${running}" = "0" ]; then
                 return
             fi
-            echo $subdirfile 
+            if [ "$(get_rest)" = "rest" ] && [ "${video_type}" != "9999" ];then
+                play_waiting "${mode}"
+            fi
             cur_file=$(expr $cur_file + 1)
             if [ "${play_mode}" = "random"  ] && [[ -e "${playlist_done}" ]] && cat "${playlist_done}" | grep "$subdirfile" > /dev/null; then
-                echo play $subdirfile  done
                 continue
             fi
-            echo start playing $subdirfile  
             stream_play "${subdirfile}" "${video_type}" "${audio}" "${subtitle}" "${file_count}" "${cur_file}" "${mode}"    
             if [ "${play_mode}" = "random"  ]; then
                 echo "next folder"
                 break
-            fi
-            #播放完毕测试是否为休息时间，如果是则退出播放本目录
-            rest=$(get_rest)
-            if [ "${rest}" = "rest" ] && [ "${video_type}" != "9999" ];then
-                play_waiting "${mode}"
             fi
         done
         echo "播放完毕"
