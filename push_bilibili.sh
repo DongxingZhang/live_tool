@@ -25,9 +25,6 @@ fontdir=${curdir}/FZYTK.TTF
 rest_start=0
 rest_end=5
 
-#播放开始时间
-playing_start=$(date +"%Y-%m-%d %H:%M:%S") 
-
 #videos下一个视频
 get_videos(){
     videono=0
@@ -99,16 +96,10 @@ get_duration(){
     echo ${duration}
 }
 
-get_playing_time(){
-    playing_end=$(date +"%Y-%m-%d %H:%M:%S")
-    playing_start_date=$(date -d "$playing_start" +%s)
-    playing_end_date=$(date -d "$playing_end" +%s)
-    time_seconds=`expr $playing_end_date - $playing_start_date`
-    hours=$(expr ${time_seconds} / 3600)
-    hours_rest=$(expr ${time_seconds} % 3600)
-    minutes=$(expr ${hours_rest} / 60)
-    seconds=$(expr ${hours_rest} % 60)
-    echo “${hours}时${minutes}分${seconds}秒”
+get_duration2(){
+    data=`ffprobe -hide_banner -show_format -show_streams "$1" 2>&1`
+    Duration=`echo $data |awk -F 'Duration: ' '{print $2}' | awk -F ',' '{print $1}' | awk -F '.' '{print $1}' | awk -F ':' '{print $1"\:"$2"\:"$3}'`
+    echo ${Duration} 
 }
 
 
@@ -176,9 +167,10 @@ stream_play(){
     fi
     
     # 叠加字体
-    playing_start=$(date +"%Y-%m-%d %H:%M:%S") 
-    content="第${cur_file}集/共${file_count}集"    
-    drawtext="drawtext=fontsize=50:fontcolor=red:text=${content}:fontfile=${fontdir}:expansion=normal:x=(mod(5*n\,w+tw)-tw):y=5:shadowx=2:shadowy=2"
+    duration=$(get_duration2 "${file}")
+    enter=`echo -e "\n''"`
+    content="正在播放中\:%{pts\:gmtime\:0\:%H\\\\\:%M\\\\\:%S}/$duration/第${cur_file}集/共${file_count}集"    
+    drawtext="drawtext=fontsize=50:fontcolor=red:text='${content}':fontfile=${fontdir}:expansion=normal:x=(mod(5*n\,w+tw)-tw):y=5:shadowx=2:shadowy=2"
     video_format="${video_format},${drawtext}"
     
     video_track=$(get_stream_track "${file}" "video")
@@ -187,11 +179,6 @@ stream_play(){
     audio_track_decode=$(get_stream_track "${file}" "audio")
     sub_track=$(get_stream_track "${file}" "subtitle")
     sub_track_decode=$(get_stream_track "${file}" "subtitle")
-    total=$(get_duration "${file}")
-    total=${total%.*}
-    echo ${total}
-    duration=$(expr $total - 600)
-    echo ${duration}
     
     if [ "$video_track" = "" ];then
         echo "${file} 没有视频轨道"
