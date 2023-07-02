@@ -20,6 +20,7 @@ playlist=${curdir}/playlist.m3u
 playlist_done=${curdir}/playlist_done.m3u
 waiting=/mnt/smb/videos
 fontdir=${curdir}/FZYTK.TTF
+fontsize=50
 
 #休息时间
 rest_start=0
@@ -167,11 +168,15 @@ stream_play(){
     fi
     
     # 叠加字体
+    #cat <( curl -s https://top.baidu.com/board?tab=realtime  ) | sed  's/\"desc\"\:\"/\n/g' | awk -F '\"\,\"hotChange\"' 'NF==2{print $1}' | sed 's/[[:space:]]//g' > ./news.txt
     duration=$(get_duration2 "${file}")
     enter=`echo -e "\n''"`
-    content="正在播放中\:%{pts\:gmtime\:0\:%H\\\\\:%M\\\\\:%S}/$duration/第${cur_file}集/共${file_count}集"    
-    drawtext="drawtext=fontsize=50:fontcolor=red:text='${content}':fontfile=${fontdir}:expansion=normal:x=(mod(5*n\,w+tw)-tw):y=5:shadowx=2:shadowy=2"
-    video_format="${video_format},${drawtext}"
+    content="第${cur_file}集/共${file_count}集${enter}时长\:${duration}${enter}播放\:%{pts\:gmtime\:0\:%H\\\\\:%M\\\\\:%S}"
+    drawtext="drawtext=fontsize=${fontsize}:fontcolor=red:text='${content}':fontfile=${fontdir}:expansion=normal:x=5:y=5:shadowx=2:shadowy=2"
+    strline=$(cat ${curdir}/news.txt)
+    #从左往右drawtext2="drawtext=fontsize=${fontsize}:fontcolor=red:text='${news}':fontfile=${fontdir}:expansion=normal:x=(mod(5*n\,w+tw)-tw):y=h-line_h-10:shadowx=2:shadowy=2"
+    drawtext2="drawtext=fontsize=${fontsize}:fontcolor=red:text='${strline}':fontfile=${fontdir}:expansion=normal:x=w-tw-w/10*mod(t\,25):y=h-line_h-10:shadowx=2:shadowy=2"
+    video_format="${video_format},${drawtext},${drawtext2}"
     
     video_track=$(get_stream_track "${file}" "video")
     video_track_decode=$(get_stream_track "${file}" "video")
@@ -211,16 +216,19 @@ stream_play(){
             do
                 #min=$(TZ=Asia/Shanghai date +%M)
                 if [ "$(get_rest)" = "rest" ]; then
-                    content="${rest_start}点到$(expr $rest_end + 1)点休息"
+                    next_video=$(get_videos)
+                    duration=$(get_duration2 "${next_video}")
+                    content="${rest_start}点到$(expr $rest_end + 1)点休息${enter}时长\:${duration}${enter}播放\:%{pts\:gmtime\:0\:%H\\\\\:%M\\\\\:%S}"
                     video_format1="eq=contrast=1:brightness=0.15,curves=preset=lighter"
-                    drawtext1="drawtext=fontsize=50:fontcolor=red:text=${content}:fontfile=${fontdir}:expansion=normal:x=(mod(5*n\,w+tw)-tw):y=line_h:shadowx=2:shadowy=2"
-                    video_format1="${video_format1},${drawtext1}"
-                    ffmpeg -loglevel "${logging}" -re -i "$(get_videos)" -preset ${preset_decode_speed} -vf "${video_format1}" -vcodec libx264 -g 60 -b:v 6000k -c:a aac -b:a 128k -strict -2 -f flv ${rtmp}
+                    drawtext1="drawtext=fontsize=${fontsize}:fontcolor=red:text='${content}':fontfile=${fontdir}:expansion=normal:x=5:y=5:shadowx=2:shadowy=2"
+                    video_format1="${video_format1},${drawtext1},${drawtext2}"
+                    echo ffmpeg -loglevel "${logging}" -re -i "${next_video}" -preset ${preset_decode_speed} -vf "${video_format1}" -vcodec libx264 -g 60 -b:v 6000k -c:a aac -b:a 128k -strict -2 -f flv ${rtmp}
+                    ffmpeg -loglevel "${logging}" -re -i "${next_video}" -preset ${preset_decode_speed} -vf "${video_format1}" -vcodec libx264 -g 60 -b:v 6000k -c:a aac -b:a 128k -strict -2 -f flv ${rtmp}
                 #elif [ ${min} -le 59 ] && [ ${min} -ge 35 ];then
                 else                
                     #content="休息一下稍后播出"
                     #video_format1="eq=contrast=1:brightness=0.15,curves=preset=lighter"
-                    #drawtext1="drawtext=fontsize=50:fontcolor=red:text=${content}:fontfile=${fontdir}:expansion=normal:x=(mod(5*n\,w+tw)-tw):y=line_h+10:shadowx=2:shadowy=2"
+                    #drawtext1="drawtext=fontsize=${fontsize}:fontcolor=red:text=${content}:fontfile=${fontdir}:expansion=normal:x=(mod(5*n\,w+tw)-tw):y=line_h+10:shadowx=2:shadowy=2"
                     #video_format1="${video_format1},${drawtext1}"
                     #ffmpeg -loglevel "${logging}" -re -i "$(get_videos)" -preset ${preset_decode_speed} -vf "${video_format1}" -vcodec libx264 -g 60 -b:v 6000k -c:a aac -b:a 128k -strict -2 -f flv ${rtmp}
                     break
