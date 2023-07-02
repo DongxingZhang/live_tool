@@ -19,20 +19,23 @@ curdir=`pwd`
 playlist=${curdir}/playlist.m3u
 playlist_done=${curdir}/playlist_done.m3u
 waiting=/mnt/smb/videos
-running=1
+fontdir=${curdir}/FZYTK.TTF
 
 #休息时间
 rest_start=0
 rest_end=5
 
+#播放开始时间
+playing_start=$(date +"%Y-%m-%d %H:%M:%S") 
+
 #videos下一个视频
 get_videos(){
-    video_no=0
+    videono=0
     declare -a filenamelist
     for subdirfile in ${waiting}/*; do
         filename=`echo ${subdirfile} | awk -F "/" '{print $NF}'`
-        filenamelist[$video_no]=${filename}
-        video_no=$(expr $video_no + 1)   
+        filenamelist[$videono]=${filename}
+        videono=$(expr $videono + 1)   
     done
     video_lengh=${#filenamelist[@]}
     touch ./myvideono
@@ -81,18 +84,6 @@ get_rest(){
     fi
 }
 
-play_waiting(){
-    mode=$1
-    while true
-    do
-        if [ "$(get_rest)" = "rest" ];then
-            stream_play "$(get_videos)" "9999" 9 9 1 1 "${mode}"
-        else
-            break
-        fi        
-    done
-}
-
 get_stream_track(){
     track=`ffprobe -loglevel repeat+level+warning  -i "$1" -show_streams -print_format csv | awk -F, '{print $1,$2,$3,$6}' | grep "$2" | awk 'NR==1{print $2}'`
     echo ${track}
@@ -106,6 +97,18 @@ get_stream_track_decode(){
 get_duration(){
     duration=`ffprobe -loglevel repeat+level+warning  -i "$1" -show_entries format=duration -v quiet -of csv="p=0"`
     echo ${duration}
+}
+
+get_playing_time(){
+    playing_end=$(date +"%Y-%m-%d %H:%M:%S")
+    playing_start_date=$(date -d "$playing_start" +%s)
+    playing_end_date=$(date -d "$playing_end" +%s)
+    time_seconds=`expr $playing_end_date - $playing_start_date`
+    hours=$(expr ${time_seconds} / 3600)
+    hours_rest=$(expr ${time_seconds} % 3600)
+    minutes=$(expr ${hours_rest} / 60)
+    seconds=$(expr ${hours_rest} % 60)
+    echo “${hours}时${minutes}分${seconds}秒”
 }
 
 
@@ -126,11 +129,7 @@ stream_play(){
     if [ "${mode}" != "test" ];then
         killall ffmpeg
     fi
-
-    if [ "${running}" = "0" ]; then
-        return
-    fi
-    
+   
     # 文件超过50GB不要播放
     maxsize=50000000000
     actualsize=$(wc -c <"$file")
@@ -170,26 +169,17 @@ stream_play(){
         video_format="scale=w=1080:h=-1,delogo=x=945:y=40:w=75:h=60:show=0,delogo=x=945:y=500:w=75:h=60:show=0,delogo=x=60:y=40:w=200:h=80:show=0,delogo=x=20:y=490:w=400:h=100:show=0,delogo=x=945:y=340:w=75:h=100:show=0,eq=contrast=1:brightness=0.15,curves=preset=lighter"
     elif [ "$video_type" = "ATV0" ];then
         video_format="delogo=x=560:y=5:w=64:h=68:show=0,delogo=x=560:y=490:w=140:h=45:show=0,eq=contrast=1:brightness=0.15,curves=preset=lighter"
+    elif [ "$video_type" = "TWTV" ];then
+        video_format="delogo=x=1042:y=58:w=190:h=86:show=0,delogo=x=94:y=38:w=248:h=60:show=0,eq=contrast=1:brightness=0.15,curves=preset=lighter"
     else
         video_format="eq=contrast=1:brightness=0.15,curves=preset=lighter"
     fi
     
     # 叠加字体
-    xx=0
-    yy=0
-    if [ "$(get_rest)" = "rest" ];then
-        content="${rest_start}点到$(expr $rest_end + 1)点休息"
-    else
-        if [ "${cur_file}" = "${file_count}" ] && [ ${file_count} -ge 2 ] ; then
-            content="大结局"
-        else
-            content="第${cur_file}集/共${file_count}集"
-        fi
-    fi    
-    if [ "${content}" != "" ]; then
-        drawtext="drawtext=fontsize=50:x=${xx}:y=${yy}:fontcolor=red:text=${content}:fontfile=${curdir}/simhei.ttf"
-        video_format="${video_format},${drawtext}"
-    fi
+    playing_start=$(date +"%Y-%m-%d %H:%M:%S") 
+    content="第${cur_file}集/共${file_count}集"    
+    drawtext="drawtext=fontsize=50:fontcolor=red:text=${content}:fontfile=${fontdir}:expansion=normal:x=(mod(5*n\,w+tw)-tw):y=5:shadowx=2:shadowy=2"
+    video_format="${video_format},${drawtext}"
     
     video_track=$(get_stream_track "${file}" "video")
     video_track_decode=$(get_stream_track "${file}" "video")
@@ -228,21 +218,29 @@ stream_play(){
     fi
     
     echo ${mapv}, ${mapa}, ${maps}
-
-    if [ "$video_type" != "9999" ] && [ "${mode}" != "test" ]; then
-        while true 
-        do
-            min=$(TZ=Asia/Shanghai date +%M)
-            if [ ${min} -le 59 ] && [ ${min} -ge 35 ];then
-                video_format1="eq=contrast=1:brightness=0.15,curves=preset=lighter"
-                drawtext1="drawtext=fontsize=50:x=${xx}:y=${yy}:fontcolor=red:text=休息一下.整点继续播出:fontfile=${curdir}/simhei.ttf"
-                video_format1="${video_format1},${drawtext1}"
-                ffmpeg -loglevel "${logging}" -re -i "$(get_videos)" -preset ${preset_decode_speed} -vf "${video_format1}" -vcodec libx264 -g 60 -b:v 6000k -c:a aac -b:a 128k -strict -2 -f flv ${rtmp}
-		
-            else
-                break
-            fi
-        done
+    
+    if [ "${mode}" != "test" ]; then
+            while true 
+            do
+                #min=$(TZ=Asia/Shanghai date +%M)
+                if [ "$(get_rest)" = "rest" ]; then
+                    content="${rest_start}点到$(expr $rest_end + 1)点休息"
+                    video_format1="eq=contrast=1:brightness=0.15,curves=preset=lighter"
+                    drawtext1="drawtext=fontsize=50:fontcolor=red:text=${content}:fontfile=${fontdir}:expansion=normal:x=(mod(5*n\,w+tw)-tw):y=line_h:shadowx=2:shadowy=2"
+                    video_format1="${video_format1},${drawtext1}"
+                    ffmpeg -loglevel "${logging}" -re -i "$(get_videos)" -preset ${preset_decode_speed} -vf "${video_format1}" -vcodec libx264 -g 60 -b:v 6000k -c:a aac -b:a 128k -strict -2 -f flv ${rtmp}
+                #elif [ ${min} -le 59 ] && [ ${min} -ge 35 ];then
+                else                
+                    #content="休息一下稍后播出"
+                    #video_format1="eq=contrast=1:brightness=0.15,curves=preset=lighter"
+                    #drawtext1="drawtext=fontsize=50:fontcolor=red:text=${content}:fontfile=${fontdir}:expansion=normal:x=(mod(5*n\,w+tw)-tw):y=line_h+10:shadowx=2:shadowy=2"
+                    #video_format1="${video_format1},${drawtext1}"
+                    #ffmpeg -loglevel "${logging}" -re -i "$(get_videos)" -preset ${preset_decode_speed} -vf "${video_format1}" -vcodec libx264 -g 60 -b:v 6000k -c:a aac -b:a 128k -strict -2 -f flv ${rtmp}
+                    break
+                #else
+                #    break
+                fi
+            done
     fi
     
     date1=$(date +"%Y-%m-%d %H:%M:%S") 
@@ -282,7 +280,7 @@ stream_play(){
     sys_date2=$(date -d "$date2" +%s)
     time_seconds=`expr $sys_date2 - $sys_date1`
     
-    if [ "$video_type" != "9999" ] && [ "${mode}" != "test" ] && [ "$?" = "0" ] && [ ${time_seconds} -ge 700 ]; then
+    if [ "${mode}" != "test" ] && [ "$?" = "0" ] && [ ${time_seconds} -ge 700 ]; then
         echo "$file" >> "${playlist_done}"
     fi
 }
@@ -312,12 +310,6 @@ stream_play_main(){
         file_count=`ls -l $line  |grep "^-"|wc -l`
         cur_file=0
         for subdirfile in "$line"/*; do
-            if [ "${running}" = "0" ]; then
-                return
-            fi
-            if [ "$(get_rest)" = "rest" ] && [ "${video_type}" != "9999" ];then
-                play_waiting "${mode}"
-            fi
             cur_file=$(expr $cur_file + 1)
             if [ "${play_mode}" = "random"  ] && [[ -e "${playlist_done}" ]] && cat "${playlist_done}" | grep "$subdirfile" > /dev/null; then
                 continue
@@ -330,9 +322,6 @@ stream_play_main(){
         done
         echo "播放完毕"
     elif [[ -f "${line}" ]] ; then
-        if [ "${running}" = "0" ]; then
-            return
-        fi
         stream_play "${line}" "${video_type}" "${audio}" "${subtitle}" 1 1 "${mode}"
         echo "播放完毕"
     else
@@ -358,9 +347,6 @@ stream_start(){
     do
       for line in `cat ${playlist}`
       do
-          if [ "${running}" = "0" ]; then
-              return
-          fi
           echo "File:${line}"
 	        date
           stream_play_main "${line}" "${play_mode}" "${mode}"
@@ -373,19 +359,21 @@ stream_start(){
 }
 
 stream_append(){
+    param=$1
     while true
     do
         clear
         echo "====视频列表===="
-        video_no=0
-        for subdirfile in /mnt/smb/电视剧/*; do
+        videono=0
+        for subdirfile in $(find /mnt/smb/电视剧 -maxdepth 1 -type d | grep "${param}"  | awk -F ':' '{print $1}')
+        do
             filename=`echo ${subdirfile} | awk -F "/" '{print $NF}'`
-            filenamelist[$video_no]=${filename}
-            video_no=$(expr $video_no + 1)
-            echo "[${video_no}]: ${filename}"
+            filenamelist[$videono]=${filename}
+            videono=$(expr $videono + 1)
+            echo "[${videono}]: ${filename}"
         done
-        read -p "请输入视频序号:(1-$video_no),:" vindex
-        if [ $vindex -ge 1 ] && [ $vindex -le $video_no  ]; then
+        read -p "请输入视频序号:(1-${videono}),:" vindex
+        if [ $vindex -ge 1 ] && [ $vindex -le ${videono}  ]; then
             vindex=$(expr $vindex - 1)
             echo '你选择了:'${filenamelist[$vindex]}
             read -p "输入(yes/no/y/n)确认:" yes
@@ -411,7 +399,6 @@ stream_append(){
 
 # 停止推流
 stream_stop(){
-    running=0
     killall ffmpeg
 }
 
@@ -450,7 +437,7 @@ start_menu(){
         stream_play_main "000099${param}"
         ;;
         4)
-        stream_append
+        stream_append "${param}"
         ;;
         5)
         stream_stop
