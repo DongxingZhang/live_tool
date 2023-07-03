@@ -178,15 +178,16 @@ stream_play(){
     fi
     
     # 叠加字体
-    cat <( curl -s http://resou.today/art/2616.html  ) | sed  's/<\/span><span>/\n/g' |  awk -F '<\/span><span class'  'NF==2{print $1}' | head -n 5 | tr -s '\n' '；' > ${curdir}/news.txt
+    cat <( curl -s http://resou.today/art/409.html  ) | sed  's/<\/span><span>/\n/g' |  awk -F '<\/span><span class'  'NF==2{print $1}' | head -n 10 | tr -s '\n' '; ' > ${curdir}/news.txt
     duration=$(get_duration2 "${file}")
     enter=`echo -e "\n''"`
-    content="第${cur_file}集/共${file_count}集${enter}时长\:${duration}${enter}播放\:%{pts\:gmtime\:0\:%H\\\\\:%M\\\\\:%S}"
+    content="播放\:%{pts\:gmtime\:0\:%H\\\\\:%M\\\\\:%S}${enter}时长\:${duration}${enter}第${cur_file}集/共${file_count}集"
     drawtext="drawtext=fontsize=${fontsize}:fontcolor=red:text='${content}':fontfile=${fontdir}:expansion=normal:x=5:y=h-line_h\*3-10:shadowx=2:shadowy=2"
-    strline=$(cat ${curdir}/news.txt)
+    #strline=$(cat ${curdir}/news.txt)
+    strline=
     #从左往右drawtext2="drawtext=fontsize=${fontsize}:fontcolor=red:text='${news}':fontfile=${fontdir}:expansion=normal:x=(mod(5*n\,w+tw)-tw):y=h-line_h-10:shadowx=2:shadowy=2"
     #w-mod(max(t-4\,0)*(w+tw)/15\,(w+tw))
-    drawtext2="drawtext=fontsize=${fontsize}:fontcolor=red:text='${strline}':fontfile=${fontdir}:expansion=normal:x=w-mod(max(t-4\,0)*(w+tw)/55\,(w+tw)):y=5:shadowx=2:shadowy=2"
+    drawtext2="drawtext=fontsize=${fontsize}:fontcolor=red:text='${strline}':fontfile=${fontdir}:expansion=normal:x=w-mod(max(t-4\,0)*(w+tw)/85\,(w+tw)):y=5:shadowx=2:shadowy=2"
     video_format="${video_format},${drawtext},${drawtext2}"
     
     video_track=$(get_stream_track "${file}" "video")
@@ -229,7 +230,7 @@ stream_play(){
                 if [ "$(get_rest)" = "rest" ]; then
                     next_video=$(get_videos)
                     duration=$(get_duration2 "${next_video}")
-                    content="${rest_start}点到$(expr $rest_end + 1)点休息${enter}时长\:${duration}${enter}播放\:%{pts\:gmtime\:0\:%H\\\\\:%M\\\\\:%S}"
+                    content="播放\:%{pts\:gmtime\:0\:%H\\\\\:%M\\\\\:%S}${enter}时长\:${duration}${enter}${rest_start}点到$(expr $rest_end + 1)点休息"
                     video_format1="eq=contrast=1:brightness=0.15,curves=preset=lighter"
                     drawtext1="drawtext=fontsize=${fontsize}:fontcolor=red:text='${content}':fontfile=${fontdir}:expansion=normal:x=5:y=h-line_h\*3-10:shadowx=2:shadowy=2"
                     video_format1="${video_format1},${drawtext1},${drawtext2}"
@@ -237,10 +238,9 @@ stream_play(){
                     ffmpeg -loglevel "${logging}" -re -i "${next_video}" -preset ${preset_decode_speed} -vf "${video_format1}" -vcodec libx264 -g 60 -b:v 6000k -c:a aac -b:a 128k -strict -2 -f flv ${rtmp}
                 #elif [ ${min} -le 59 ] && [ ${min} -ge 35 ];then
                 else
-	            break
                     next_video=$(get_videos2)
                     duration=$(get_duration2 "${next_video}")
-                    content="休息一下，稍后继续${enter}时长\:${duration}${enter}播放\:%{pts\:gmtime\:0\:%H\\\\\:%M\\\\\:%S}"
+                    content="时长\:${duration}${enter}播放\:%{pts\:gmtime\:0\:%H\\\\\:%M\\\\\:%S}${enter}休息一下，稍后继续"
                     video_format1="eq=contrast=1:brightness=0.15,curves=preset=lighter"
                     drawtext1="drawtext=fontsize=${fontsize}:fontcolor=red:text='${content}':fontfile=${fontdir}:expansion=normal:x=5:y=h-line_h\*3-10:shadowx=2:shadowy=2"
                     video_format1="${video_format1},${drawtext1},${drawtext2}"
