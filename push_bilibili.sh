@@ -19,6 +19,7 @@ curdir=`pwd`
 playlist=${curdir}/playlist.m3u
 playlist_done=${curdir}/playlist_done.m3u
 waiting=/mnt/smb/videos
+waiting2=/mnt/smb/videos2
 fontdir=${curdir}/FZYTK.TTF
 fontsize=50
 
@@ -26,18 +27,19 @@ fontsize=50
 rest_start=0
 rest_end=5
 
-#videos下一个视频
-get_videos(){
+get_videos_real(){
+    waitingdir=$1
+    videonofile=$2
     videono=0
     declare -a filenamelist
-    for subdirfile in ${waiting}/*; do
+    for subdirfile in ${waitingdir}/*; do
         filename=`echo ${subdirfile} | awk -F "/" '{print $NF}'`
         filenamelist[$videono]=${filename}
         videono=$(expr $videono + 1)   
     done
     video_lengh=${#filenamelist[@]}
-    touch ./myvideono
-    next_video=`cat ./myvideono`
+    touch ${curdir}/${videonofile}
+    next_video=`cat ${curdir}/${videonofile}`
 
     if [ "${next_video}" =  "" ]; then
         next_video=0
@@ -46,8 +48,16 @@ get_videos(){
         next_video=0
     fi
     next_next_video=$(expr $next_video + 1)
-    echo "${next_next_video}" > ./myvideono
-    echo "${waiting}/${filenamelist[$next_video]}"
+    echo "${next_next_video}" > ${curdir}/${videonofile}
+    echo "${waitingdir}/${filenamelist[$next_video]}"
+}
+
+get_videos(){
+   get_videos_real ${waiting} myvideono
+}
+
+get_videos2(){
+   get_videos_real ${waiting2} myvideono2
 }
 
 echo "推流地址和推流码:${rtmp}"
@@ -168,14 +178,15 @@ stream_play(){
     fi
     
     # 叠加字体
-    #cat <( curl -s https://top.baidu.com/board?tab=realtime  ) | sed  's/\"desc\"\:\"/\n/g' | awk -F '\"\,\"hotChange\"' 'NF==2{print $1}' | sed 's/[[:space:]]//g' > ./news.txt
+    cat <( curl -s http://resou.today/art/2616.html  ) | sed  's/<\/span><span>/\n/g' |  awk -F '<\/span><span class'  'NF==2{print $1}' | head -n 5 | tr -s '\n' '；' > ${curdir}/news.txt
     duration=$(get_duration2 "${file}")
     enter=`echo -e "\n''"`
     content="第${cur_file}集/共${file_count}集${enter}时长\:${duration}${enter}播放\:%{pts\:gmtime\:0\:%H\\\\\:%M\\\\\:%S}"
-    drawtext="drawtext=fontsize=${fontsize}:fontcolor=red:text='${content}':fontfile=${fontdir}:expansion=normal:x=5:y=5:shadowx=2:shadowy=2"
+    drawtext="drawtext=fontsize=${fontsize}:fontcolor=red:text='${content}':fontfile=${fontdir}:expansion=normal:x=5:y=h-line_h\*3-10:shadowx=2:shadowy=2"
     strline=$(cat ${curdir}/news.txt)
     #从左往右drawtext2="drawtext=fontsize=${fontsize}:fontcolor=red:text='${news}':fontfile=${fontdir}:expansion=normal:x=(mod(5*n\,w+tw)-tw):y=h-line_h-10:shadowx=2:shadowy=2"
-    drawtext2="drawtext=fontsize=${fontsize}:fontcolor=red:text='${strline}':fontfile=${fontdir}:expansion=normal:x=w-tw-w/10*mod(t\,25):y=h-line_h-10:shadowx=2:shadowy=2"
+    #w-mod(max(t-4\,0)*(w+tw)/15\,(w+tw))
+    drawtext2="drawtext=fontsize=${fontsize}:fontcolor=red:text='${strline}':fontfile=${fontdir}:expansion=normal:x=w-mod(max(t-4\,0)*(w+tw)/55\,(w+tw)):y=5:shadowx=2:shadowy=2"
     video_format="${video_format},${drawtext},${drawtext2}"
     
     video_track=$(get_stream_track "${file}" "video")
@@ -220,17 +231,21 @@ stream_play(){
                     duration=$(get_duration2 "${next_video}")
                     content="${rest_start}点到$(expr $rest_end + 1)点休息${enter}时长\:${duration}${enter}播放\:%{pts\:gmtime\:0\:%H\\\\\:%M\\\\\:%S}"
                     video_format1="eq=contrast=1:brightness=0.15,curves=preset=lighter"
-                    drawtext1="drawtext=fontsize=${fontsize}:fontcolor=red:text='${content}':fontfile=${fontdir}:expansion=normal:x=5:y=5:shadowx=2:shadowy=2"
+                    drawtext1="drawtext=fontsize=${fontsize}:fontcolor=red:text='${content}':fontfile=${fontdir}:expansion=normal:x=5:y=h-line_h\*3-10:shadowx=2:shadowy=2"
                     video_format1="${video_format1},${drawtext1},${drawtext2}"
                     echo ffmpeg -loglevel "${logging}" -re -i "${next_video}" -preset ${preset_decode_speed} -vf "${video_format1}" -vcodec libx264 -g 60 -b:v 6000k -c:a aac -b:a 128k -strict -2 -f flv ${rtmp}
                     ffmpeg -loglevel "${logging}" -re -i "${next_video}" -preset ${preset_decode_speed} -vf "${video_format1}" -vcodec libx264 -g 60 -b:v 6000k -c:a aac -b:a 128k -strict -2 -f flv ${rtmp}
                 #elif [ ${min} -le 59 ] && [ ${min} -ge 35 ];then
-                else                
-                    #content="休息一下稍后播出"
-                    #video_format1="eq=contrast=1:brightness=0.15,curves=preset=lighter"
-                    #drawtext1="drawtext=fontsize=${fontsize}:fontcolor=red:text=${content}:fontfile=${fontdir}:expansion=normal:x=(mod(5*n\,w+tw)-tw):y=line_h+10:shadowx=2:shadowy=2"
-                    #video_format1="${video_format1},${drawtext1}"
-                    #ffmpeg -loglevel "${logging}" -re -i "$(get_videos)" -preset ${preset_decode_speed} -vf "${video_format1}" -vcodec libx264 -g 60 -b:v 6000k -c:a aac -b:a 128k -strict -2 -f flv ${rtmp}
+                else
+	            break
+                    next_video=$(get_videos2)
+                    duration=$(get_duration2 "${next_video}")
+                    content="休息一下，稍后继续${enter}时长\:${duration}${enter}播放\:%{pts\:gmtime\:0\:%H\\\\\:%M\\\\\:%S}"
+                    video_format1="eq=contrast=1:brightness=0.15,curves=preset=lighter"
+                    drawtext1="drawtext=fontsize=${fontsize}:fontcolor=red:text='${content}':fontfile=${fontdir}:expansion=normal:x=5:y=h-line_h\*3-10:shadowx=2:shadowy=2"
+                    video_format1="${video_format1},${drawtext1},${drawtext2}"
+                    echo ffmpeg -loglevel "${logging}" -re -i "${next_video}" -preset ${preset_decode_speed} -vf "${video_format1}" -vcodec libx264 -g 60 -b:v 6000k -c:a aac -b:a 128k -strict -2 -f flv ${rtmp}
+                    ffmpeg -loglevel "${logging}" -re -i "${next_video}" -preset ${preset_decode_speed} -vf "${video_format1}" -vcodec libx264 -g 60 -b:v 6000k -c:a aac -b:a 128k -strict -2 -f flv ${rtmp}
                     break
                 #else
                 #    break
