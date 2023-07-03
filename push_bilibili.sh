@@ -21,11 +21,12 @@ playlist_done=${curdir}/playlist_done.m3u
 waiting=/mnt/smb/videos
 waiting2=/mnt/smb/videos2
 fontdir=${curdir}/FZYTK.TTF
-fontsize=50
+fontsize=70
+enter=`echo -e "\n''"`
 
 #休息时间
-rest_start=0
-rest_end=5
+rest_start=1
+rest_end=7
 
 get_videos_real(){
     waitingdir=$1
@@ -113,6 +114,14 @@ get_duration2(){
     echo ${Duration} 
 }
 
+get_fontsize(){
+    data=`ffprobe -hide_banner -show_format -show_streams "$1" 2>&1`
+    width=`echo $data |  awk -F 'width=' '{print $2}' | awk -F ' ' '{print $1}'`
+    height=`echo $data |  awk -F 'height=' '{print $2}' | awk -F ' ' '{print $1}'`
+    newfontsize=`echo "scale=5;sqrt($width*$width+$height*$height)/2203*$fontsize" | bc`
+    newfontsize=`echo "scale=0;$newfontsize/1" | bc`
+    echo $newfontsize
+}
 
 stream_play(){
     file=$1
@@ -177,20 +186,7 @@ stream_play(){
         video_format="eq=contrast=1:brightness=0.15,curves=preset=lighter"
     fi
     
-    # 叠加字体
-    #cat <( curl -s http://resou.today/art/409.html  ) | sed  's/<\/span><span>/\n/g' |  awk -F '<\/span><span class'  'NF==2{print $1}' | head -n 10 | tr -s '\n' '; ' > ${curdir}/news.txt
-    #strline=$(cat ${curdir}/news.txt)
-    
-    duration=$(get_duration2 "${file}")
-    enter=`echo -e "\n''"`
-    content="播放\:%{pts\:gmtime\:0\:%H\\\\\:%M\\\\\:%S}${enter}时长\:${duration}${enter}第${cur_file}集/共${file_count}集"
-    drawtext="drawtext=fontsize=${fontsize}:fontcolor=red:text='${content}':fontfile=${fontdir}:expansion=normal:x=5:y=h-line_h\*3-10:shadowx=2:shadowy=2"
-    strline=
-    #从左往右drawtext2="drawtext=fontsize=${fontsize}:fontcolor=red:text='${news}':fontfile=${fontdir}:expansion=normal:x=(mod(5*n\,w+tw)-tw):y=h-line_h-10:shadowx=2:shadowy=2"
-    #从右到左
-    drawtext2="drawtext=fontsize=${fontsize}:fontcolor=red:text='${strline}':fontfile=${fontdir}:expansion=normal:x=w-mod(max(t-4\,0)*(w+tw)/85\,(w+tw)):y=5:shadowx=2:shadowy=2"
-    video_format="${video_format},${drawtext},${drawtext2}"
-    
+  
     video_track=$(get_stream_track "${file}" "video")
     video_track_decode=$(get_stream_track "${file}" "video")
     audio_track=$(get_stream_track "${file}" "audio")
@@ -236,9 +232,12 @@ stream_play(){
                     duration=$(get_duration2 "${next_video}")
                     content="播放\:%{pts\:gmtime\:0\:%H\\\\\:%M\\\\\:%S}${enter}时长\:${duration}${enter}休息一下，稍后继续"                   
                 fi
-                
+                #获取真正字体
+                newfontsize2=$(get_fontsize ${next_video})
+                echo newfontsize2=${newfontsize2}
+                drawtext2="drawtext=fontsize=${newfontsize2}:fontcolor=red:text='${strline}':fontfile=${fontdir}:expansion=normal:x=w-mod(max(t-4\,0)*(w+tw)/85\,(w+tw)):y=5:shadowx=2:shadowy=2"
                 video_format1="eq=contrast=1:brightness=0.15,curves=preset=lighter"
-                drawtext1="drawtext=fontsize=${fontsize}:fontcolor=red:text='${content}':fontfile=${fontdir}:expansion=normal:x=5:y=h-line_h\*3-10:shadowx=2:shadowy=2"
+                drawtext1="drawtext=fontsize=${newfontsize2}:fontcolor=red:text='${content}':fontfile=${fontdir}:expansion=normal:x=5:y=h-line_h\*3-10:shadowx=2:shadowy=2"
                 video_format1="${video_format1},${drawtext1},${drawtext2}"
                 echo ffmpeg -loglevel "${logging}" -re -i "${next_video}" -preset ${preset_decode_speed} -vf "${video_format1}" -vcodec libx264 -g 60 -b:v 6000k -c:a aac -b:a 128k -strict -2 -f flv ${rtmp}
                 ffmpeg -loglevel "${logging}" -re -i "${next_video}" -preset ${preset_decode_speed} -vf "${video_format1}" -vcodec libx264 -g 60 -b:v 6000k -c:a aac -b:a 128k -strict -2 -f flv ${rtmp}
@@ -248,6 +247,23 @@ stream_play(){
                 fi
             done
     fi
+    
+    #获取真正字体
+    newfontsize=$(get_fontsize ${file})
+    echo newfontsize=${newfontsize}
+    
+    # 叠加字体
+    #cat <( curl -s http://resou.today/art/409.html  ) | sed  's/<\/span><span>/\n/g' |  awk -F '<\/span><span class'  'NF==2{print $1}' | head -n 10 | tr -s '\n' '; ' > ${curdir}/news.txt
+    #strline=$(cat ${curdir}/news.txt)
+    
+    duration=$(get_duration2 "${file}")
+    content="播放\:%{pts\:gmtime\:0\:%H\\\\\:%M\\\\\:%S}${enter}时长\:${duration}${enter}第${cur_file}集/共${file_count}集"
+    drawtext="drawtext=fontsize=${newfontsize}:fontcolor=red:text='${content}':fontfile=${fontdir}:expansion=normal:x=5:y=h-line_h\*3-10:shadowx=2:shadowy=2"
+    strline=
+    #从左往右drawtext2="drawtext=fontsize=${newfontsize}:fontcolor=red:text='${news}':fontfile=${fontdir}:expansion=normal:x=(mod(5*n\,w+tw)-tw):y=h-line_h-10:shadowx=2:shadowy=2"
+    #从右到左
+    drawtext2="drawtext=fontsize=${newfontsize}:fontcolor=red:text='${strline}':fontfile=${fontdir}:expansion=normal:x=w-mod(max(t-4\,0)*(w+tw)/85\,(w+tw)):y=5:shadowx=2:shadowy=2"
+    video_format="${video_format},${drawtext},${drawtext2}"
     
     date1=$(date +"%Y-%m-%d %H:%M:%S") 
     
