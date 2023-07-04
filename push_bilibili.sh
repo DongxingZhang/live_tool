@@ -18,15 +18,30 @@ image=
 curdir=`pwd`
 playlist=${curdir}/playlist.m3u
 playlist_done=${curdir}/playlist_done.m3u
-waiting=/mnt/smb/videos
+
+waiting=/mnt/smb/电视剧/笑傲江湖周润发版
+waitingvc=${curdir}/myvideono
 waiting2=/mnt/smb/videos2
-fontdir=${curdir}/FZYTK.TTF
+waitingvc2=${curdir}/myvideono2
+
+fontdir=${curdir}/fonts/FZYTK.TTF
 fontsize=70
+
 enter=`echo -e "\n''"`
 
 #休息时间
-rest_start=1
+rest_start=0
 rest_end=7
+
+get_rest(){
+    hours=$(TZ=Asia/Shanghai date +%H)
+    #测试是否为休息时间
+    if [ ${hours} -ge ${rest_start} ] && [ ${hours} -le ${rest_end} ];then
+        echo rest
+    else    
+        echo playing
+    fi
+}
 
 get_videos_real(){
     waitingdir=$1
@@ -39,8 +54,8 @@ get_videos_real(){
         videono=$(expr $videono + 1)   
     done
     video_lengh=${#filenamelist[@]}
-    touch ${curdir}/${videonofile}
-    next_video=`cat ${curdir}/${videonofile}`
+    touch ${videonofile}
+    next_video=`cat ${videonofile}`
 
     if [ "${next_video}" =  "" ]; then
         next_video=0
@@ -49,16 +64,16 @@ get_videos_real(){
         next_video=0
     fi
     next_next_video=$(expr $next_video + 1)
-    echo "${next_next_video}" > ${curdir}/${videonofile}
+    echo "${next_next_video}" > ${videonofile}
     echo "${waitingdir}/${filenamelist[$next_video]}"
 }
 
 get_videos(){
-   get_videos_real ${waiting} myvideono
+   get_videos_real ${waiting} ${waitingvc}
 }
 
 get_videos2(){
-   get_videos_real ${waiting2} myvideono2
+   get_videos_real ${waiting2} ${waitingvc2}
 }
 
 echo "推流地址和推流码:${rtmp}"
@@ -80,16 +95,6 @@ ffmpeg_install(){
     then
         echo -e "${yellow} 你选择不安装FFmpeg,请确定你的机器内已经自行安装过FFmpeg,否则程序无法正常工作! ${font}"
         sleep 2
-    fi
-}
-
-get_rest(){
-    hours=$(TZ=Asia/Shanghai date +%H)
-    #测试是否为休息时间
-    if [ ${hours} -ge ${rest_start} ] && [ ${hours} -le ${rest_end} ];then
-        echo rest
-    else    
-        echo playing
     fi
 }
 
@@ -158,35 +163,40 @@ stream_play(){
     echo "推送${file}"
     logging="repeat+level+warning"
     preset_decode_speed="ultrafast"
-    video_format="eq=contrast=1:brightness=0.2,curves=preset=lighter"
+
     #去掉logo
-    if [ "$video_type" = "YOUK" ];then
-        video_format="delogo=x=795:y=25:w=160:h=35:show=0,eq=contrast=1:brightness=0.15,curves=preset=lighter"
-    elif [ "$video_type" = "TVB0" ];then
-        video_format="delogo=x=965:y=40:w=75:h=60:show=0,eq=contrast=1:brightness=0.15,curves=preset=lighter"
-    elif [ "$video_type" = "TVB1" ];then
-        video_format="delogo=x=400:y=30:w=75:h=60:show=0,eq=contrast=1:brightness=0.15,curves=preset=lighter"
-    elif [ "$video_type" = "TVB2" ];then
-        video_format="delogo=x=525:y=30:w=85:h=60:show=0,eq=contrast=1:brightness=0.15,curves=preset=lighter"
-    elif [ "$video_type" = "TVB3" ];then
-        video_format="delogo=x=795:y=30:w=75:h=60:show=0,eq=contrast=1:brightness=0.15,curves=preset=lighter"
-    elif [ "$video_type" = "CCTV" ];then
-        video_format="delogo=x=80:y=50:w=155:h=120:show=0,eq=contrast=1:brightness=0.15,curves=preset=lighter"
-    elif [ "$video_type" = "CCT2" ];then
-        video_format="delogo=x=50:y=45:w=120:h=60:show=0,eq=contrast=1:brightness=0.15,curves=preset=lighter"
-    elif [ "$video_type" = "TRB0" ];then
-        video_format="delogo=x=5:y=5:w=1270:h=40:show=0,delogo=x=1050:y=610:w=200:h=100:show=0,delogo=x=250:y=580:w=750:h=120:show=0,eq=contrast=1:brightness=0.15,curves=preset=lighter"
-    elif [ "$video_type" = "CCT1" ];then #去掉CCTV6的标题
-        video_format="scale=w=1080:h=-1,delogo=x=945:y=40:w=75:h=60:show=0,delogo=x=945:y=500:w=75:h=60:show=0,delogo=x=60:y=40:w=200:h=80:show=0,delogo=x=20:y=490:w=400:h=100:show=0,delogo=x=945:y=340:w=75:h=100:show=0,eq=contrast=1:brightness=0.15,curves=preset=lighter"
-    elif [ "$video_type" = "ATV0" ];then
-        video_format="delogo=x=560:y=5:w=64:h=68:show=0,delogo=x=560:y=490:w=140:h=45:show=0,eq=contrast=1:brightness=0.15,curves=preset=lighter"
-    elif [ "$video_type" = "TWTV" ];then
-        video_format="delogo=x=1042:y=58:w=190:h=86:show=0,delogo=x=94:y=38:w=248:h=60:show=0,eq=contrast=1:brightness=0.15,curves=preset=lighter"
+    if [ "${video_type:0:3}" = "YOU" ];then
+        delogo="delogo=x=795:y=25:w=160:h=35:show=0,"
+    elif [ "${video_type:0:3}" = "TV0" ];then
+        delogo="delogo=x=965:y=40:w=75:h=60:show=0,"
+    elif [ "${video_type:0:3}" = "TV1" ];then
+        delogo="delogo=x=400:y=30:w=75:h=60:show=0,"
+    elif [ "${video_type:0:3}" = "TV2" ];then
+        delogo="delogo=x=525:y=30:w=85:h=60:show=0,"
+    elif [ "${video_type:0:3}" = "TV3" ];then
+        delogo="delogo=x=795:y=30:w=75:h=60:show=0,"
+    elif [ "${video_type:0:3}" = "CCV" ];then
+        delogo="delogo=x=80:y=50:w=155:h=120:show=0,"
+    elif [ "${video_type:0:3}" = "CC2" ];then
+        delogo="delogo=x=50:y=45:w=120:h=60:show=0,"
+    elif [ "${video_type:0:3}" = "TR0" ];then
+        delogo="delogo=x=5:y=5:w=1270:h=40:show=0,delogo=x=1050:y=610:w=200:h=100:show=0,delogo=x=250:y=580:w=750:h=120:show=0,"
+    elif [ "${video_type:0:3}" = "CC1" ];then #去掉CCTV6的标题
+        delogo="scale=w=1080:h=-1,delogo=x=945:y=40:w=75:h=60:show=0,delogo=x=945:y=500:w=75:h=60:show=0,delogo=x=60:y=40:w=200:h=80:show=0,delogo=x=20:y=490:w=400:h=100:show=0,delogo=x=945:y=340:w=75:h=100:show=0,"
+    elif [ "${video_type:0:3}" = "AT0" ];then
+        delogo="delogo=x=560:y=5:w=64:h=68:show=0,delogo=x=560:y=490:w=140:h=45:show=0,"
+    elif [ "${video_type:0:3}" = "TWV" ];then
+        delogo="delogo=x=1042:y=58:w=190:h=86:show=0,delogo=x=94:y=38:w=248:h=60:show=0,"
     else
-        video_format="eq=contrast=1:brightness=0.15,curves=preset=lighter"
+        delogo=""
+    fi
+
+    if [ "${video_type:3:1}" != "F" ];then
+        video_format="${delogo}eq=contrast=1:brightness=0.2,curves=preset=lighter"
+    else
+        video_format="${delogo}eq=contrast=1"
     fi
     
-  
     video_track=$(get_stream_track "${file}" "video")
     video_track_decode=$(get_stream_track "${file}" "video")
     audio_track=$(get_stream_track "${file}" "audio")
@@ -226,19 +236,20 @@ stream_play(){
                 if [ "$(get_rest)" = "rest" ]; then
                     next_video=$(get_videos)
                     duration=$(get_duration2 "${next_video}")
-                    content="播放\:%{pts\:gmtime\:0\:%H\\\\\:%M\\\\\:%S}${enter}时长\:${duration}${enter}${rest_start}点到$(expr $rest_end + 1)点休息"                    
+                    content="播放%{pts\:gmtime\:0\:%H\\\\\:%M\\\\\:%S}${enter}时长${duration}${enter}${rest_start}点到$(expr $rest_end + 1)点循环播放"
                 else
+                    break # 每集电视剧之间不播放歌曲
                     next_video=$(get_videos2)
                     duration=$(get_duration2 "${next_video}")
-                    content="播放\:%{pts\:gmtime\:0\:%H\\\\\:%M\\\\\:%S}${enter}时长\:${duration}${enter}休息一下，稍后继续"                   
+                    content="播放%{pts\:gmtime\:0\:%H\\\\\:%M\\\\\:%S}${enter}时长${duration}${enter}休息一下，稍后继续"
                 fi
                 #获取真正字体
                 newfontsize2=$(get_fontsize ${next_video})
                 echo newfontsize2=${newfontsize2}
                 drawtext2="drawtext=fontsize=${newfontsize2}:fontcolor=red:text='${strline}':fontfile=${fontdir}:expansion=normal:x=w-mod(max(t-4\,0)*(w+tw)/85\,(w+tw)):y=5:shadowx=2:shadowy=2"
-                video_format1="eq=contrast=1:brightness=0.15,curves=preset=lighter"
+                vf_light1="eq=contrast=1:brightness=0.15,curves=preset=lighter"
                 drawtext1="drawtext=fontsize=${newfontsize2}:fontcolor=red:text='${content}':fontfile=${fontdir}:expansion=normal:x=5:y=h-line_h\*3-10:shadowx=2:shadowy=2"
-                video_format1="${video_format1},${drawtext1},${drawtext2}"
+                video_format1="${vf_light1},${drawtext1},${drawtext2}"
                 echo ffmpeg -loglevel "${logging}" -re -i "${next_video}" -preset ${preset_decode_speed} -vf "${video_format1}" -vcodec libx264 -g 60 -b:v 6000k -c:a aac -b:a 128k -strict -2 -f flv ${rtmp}
                 ffmpeg -loglevel "${logging}" -re -i "${next_video}" -preset ${preset_decode_speed} -vf "${video_format1}" -vcodec libx264 -g 60 -b:v 6000k -c:a aac -b:a 128k -strict -2 -f flv ${rtmp}
                 
@@ -257,7 +268,7 @@ stream_play(){
     #strline=$(cat ${curdir}/news.txt)
     
     duration=$(get_duration2 "${file}")
-    content="播放\:%{pts\:gmtime\:0\:%H\\\\\:%M\\\\\:%S}${enter}时长\:${duration}${enter}第${cur_file}集/共${file_count}集"
+    content="播放%{pts\:gmtime\:0\:%H\\\\\:%M\\\\\:%S}${enter}时长${duration}${enter}第${cur_file}集/共${file_count}集"
     drawtext="drawtext=fontsize=${newfontsize}:fontcolor=red:text='${content}':fontfile=${fontdir}:expansion=normal:x=5:y=h-line_h\*3-10:shadowx=2:shadowy=2"
     strline=
     #从左往右drawtext2="drawtext=fontsize=${newfontsize}:fontcolor=red:text='${news}':fontfile=${fontdir}:expansion=normal:x=(mod(5*n\,w+tw)-tw):y=h-line_h-10:shadowx=2:shadowy=2"
