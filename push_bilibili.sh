@@ -24,10 +24,13 @@ waitingvc=${curdir}/myvideono
 waiting2=/mnt/smb/videos2
 waitingvc2=${curdir}/myvideono2
 
-fontdir=${curdir}/fonts/FZYTK.TTF
-fontsize=70
+fontdir=${curdir}/fonts/STFANGSO.TTF
+fontsize=60
+fontcolor=#FDE6E0
+fontbg="box=1: boxcolor=black@0.3:boxborderw=3"
 
 enter=`echo -e "\n''"`
+split=`echo -e "\t''"`
 
 #休息时间
 rest_start=0
@@ -126,6 +129,11 @@ get_fontsize(){
     newfontsize=`echo "scale=5;sqrt($width*$width+$height*$height)/2203*$fontsize" | bc`
     newfontsize=`echo "scale=0;$newfontsize/1" | bc`
     echo $newfontsize
+}
+
+digit_half2full(){
+    res=$(echo $1 | sed 's/1/１/g'  | sed 's/2/２/g'  | sed 's/3/３/g'  | sed 's/4/４/g'  | sed 's/5/５/g'  | sed 's/6/６/g'  | sed 's/7/７/g'  | sed 's/8/８/g' | sed 's/9/９/g')
+    echo $res
 }
 
 stream_play(){
@@ -238,7 +246,8 @@ stream_play(){
                     duration=$(get_duration2 "${next_video}")
                     content="播放%{pts\:gmtime\:0\:%H\\\\\:%M\\\\\:%S}${enter}时长${duration}${enter}${rest_start}点到$(expr $rest_end + 1)点循环播放"
                 else
-                    break # 每集电视剧之间不播放歌曲
+	                  break
+                    # 每集电视剧之间不播放歌曲
                     next_video=$(get_videos2)
                     duration=$(get_duration2 "${next_video}")
                     content="播放%{pts\:gmtime\:0\:%H\\\\\:%M\\\\\:%S}${enter}时长${duration}${enter}休息一下，稍后继续"
@@ -246,9 +255,9 @@ stream_play(){
                 #获取真正字体
                 newfontsize2=$(get_fontsize ${next_video})
                 echo newfontsize2=${newfontsize2}
-                drawtext2="drawtext=fontsize=${newfontsize2}:fontcolor=red:text='${strline}':fontfile=${fontdir}:expansion=normal:x=w-mod(max(t-4\,0)*(w+tw)/85\,(w+tw)):y=5:shadowx=2:shadowy=2"
+                drawtext2="drawtext=fontsize=${newfontsize2}:fontcolor=${fontcolor}:text='${strline}':fontfile=${fontdir}:expansion=normal:x=w-mod(max(t-4\,0)*(w+tw)/85\,(w+tw)):y=5:shadowx=2:shadowy=2:${fontbg}"
                 vf_light1="eq=contrast=1:brightness=0.15,curves=preset=lighter"
-                drawtext1="drawtext=fontsize=${newfontsize2}:fontcolor=red:text='${content}':fontfile=${fontdir}:expansion=normal:x=5:y=h-line_h\*3-10:shadowx=2:shadowy=2"
+                drawtext1="drawtext=fontsize=${newfontsize2}:fontcolor=${fontcolor}:text='${content}':fontfile=${fontdir}:expansion=normal:x=5:y=h-line_h\*3-10:shadowx=2:shadowy=2:${fontbg}"
                 video_format1="${vf_light1},${drawtext1},${drawtext2}"
                 echo ffmpeg -loglevel "${logging}" -re -i "${next_video}" -preset ${preset_decode_speed} -vf "${video_format1}" -vcodec libx264 -g 60 -b:v 6000k -c:a aac -b:a 128k -strict -2 -f flv ${rtmp}
                 ffmpeg -loglevel "${logging}" -re -i "${next_video}" -preset ${preset_decode_speed} -vf "${video_format1}" -vcodec libx264 -g 60 -b:v 6000k -c:a aac -b:a 128k -strict -2 -f flv ${rtmp}
@@ -264,17 +273,23 @@ stream_play(){
     echo newfontsize=${newfontsize}
     
     # 叠加字体
-    #cat <( curl -s http://resou.today/art/409.html  ) | sed  's/<\/span><span>/\n/g' |  awk -F '<\/span><span class'  'NF==2{print $1}' | head -n 10 | tr -s '\n' '; ' > ${curdir}/news.txt
-    #strline=$(cat ${curdir}/news.txt)
-    
+    cat <( curl -s http://www.nmc.cn/publish/forecast/  ) | tr -s '\n' ' ' |  sed  's/<div class="col-xs-4">/\n/g' | sed -E 's/<[^>]+>//g' | awk -F ' ' 'NF==5{print $1,$2,$3}' | head -n 32 | tr -s '\n' ';' | sed 's/徐家汇/上海/g' | sed 's/长沙市/长沙/g' >  ${curdir}/news.txt
+    strline=$(cat ${curdir}/news.txt)
+    echo $strline    
     duration=$(get_duration2 "${file}")
-    content="播放%{pts\:gmtime\:0\:%H\\\\\:%M\\\\\:%S}${enter}时长${duration}${enter}第${cur_file}集/共${file_count}集"
-    drawtext="drawtext=fontsize=${newfontsize}:fontcolor=red:text='${content}':fontfile=${fontdir}:expansion=normal:x=5:y=h-line_h\*3-10:shadowx=2:shadowy=2"
-    strline=
-    #从左往右drawtext2="drawtext=fontsize=${newfontsize}:fontcolor=red:text='${news}':fontfile=${fontdir}:expansion=normal:x=(mod(5*n\,w+tw)-tw):y=h-line_h-10:shadowx=2:shadowy=2"
+    content="播放 %{pts\:gmtime\:0\:%H\\\\\:%M\\\\\:%S}${enter}时长 ${duration}"
+    drawtext="drawtext=fontsize=${newfontsize}:fontcolor=${fontcolor}:text='${content}':fontfile=${fontdir}:expansion=normal:x=5:y=h-line_h\*2-10:shadowx=2:shadowy=2:${fontbg}"
+    #从左往右drawtext2="drawtext=fontsize=${newfontsize}:fontcolor=${fontcolor}:text='${news}':fontfile=${fontdir}:expansion=normal:x=(mod(5*n\,w+tw)-tw):y=h-line_h-10:shadowx=2:shadowy=2:${fontbg}"
     #从右到左
-    drawtext2="drawtext=fontsize=${newfontsize}:fontcolor=red:text='${strline}':fontfile=${fontdir}:expansion=normal:x=w-mod(max(t-4\,0)*(w+tw)/85\,(w+tw)):y=5:shadowx=2:shadowy=2"
-    video_format="${video_format},${drawtext},${drawtext2}"
+    drawtext2="drawtext=fontsize=${newfontsize}:fontcolor=${fontcolor}:text='${strline}':fontfile=${fontdir}:expansion=normal:x=w-mod(max(t-1\,0)*(w+tw)/215\,(w+tw)):y=5:shadowx=2:shadowy=2:${fontbg}"
+    if [ ${cur_file} -lt 10 ] && [ ${cur_file} -gt 0 ]; then
+        cur_file=$(digit_half2full ${cur_file})
+    fi
+    if [ ${file_count} -lt 10 ] && [ ${file_count} -gt 0 ]; then
+        file_count=$(digit_half2full ${file_count})
+    fi
+    drawtext3="drawtext=fontsize=${newfontsize}:fontcolor=${fontcolor}:text='第${enter}${cur_file}${enter}集${enter}${enter}共${enter}${file_count}${enter}集':fontfile=${fontdir}:expansion=normal:x=w-line_h\*4:y=h/2-line_h\*3:shadowx=2:shadowy=2:${fontbg}"
+    video_format="${video_format},${drawtext},${drawtext2},${drawtext3}"
     
     date1=$(date +"%Y-%m-%d %H:%M:%S") 
     
