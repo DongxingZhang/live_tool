@@ -14,7 +14,7 @@ rtmp="rtmp://live-push.bilivideo.com/live-bvc/?streamname=live_97540856_1852534&
 
 
 # 配置水印文件
-image=
+image=1
 curdir=`pwd`
 playlist=${curdir}/playlist.m3u
 playlist_done=${curdir}/playlist_done.m3u
@@ -33,8 +33,8 @@ enter=`echo -e "\n''"`
 split=`echo -e "\t''"`
 
 #休息时间
-rest_start=0
-rest_end=7
+rest_start=23
+rest_end=6
 
 get_rest(){
     hours=$(TZ=Asia/Shanghai date +%H)
@@ -275,15 +275,19 @@ stream_play(){
                 content="%{pts\:gmtime\:0\:%H\\\\\:%M\\\\\:%S}${enter}${duration}"
                 content2="休${enter}息${enter}一${enter}下${enter}${enter}稍${enter}后${enter}继${enter}续"
             fi
+            
             #获取真正字体
             newfontsize2=$(get_fontsize ${next_video})
             echo newfontsize2=${newfontsize2}
-            halfnewfontsize2=$(expr ${newfontsize2} \* 2 / 3)
+            halfnewfontsize2=$(expr ${newfontsize2} \* 82 / 100)
+            rm -rf ${curdir}/logo/logo.png 
+            ffmpeg -i ${curdir}/logo/wuxia.png -vf "scale=${halfnewfontsize2}:-1" ${curdir}/logo/logo.png            
             vf_light1="eq=contrast=1:brightness=0.15,curves=preset=lighter"
             delogo1="delogo=x=965:y=40:w=75:h=60:show=0"
-            drawtext1="drawtext=fontsize=${halfnewfontsize2}:fontcolor=${fontcolor}:text='${content}':fontfile=${fontdir}:expansion=normal:x=5:y=h-line_h\*2-10:shadowx=2:shadowy=2:${fontbg}"
+            drawtext1="drawtext=fontsize=${halfnewfontsize2}:fontcolor=${fontcolor}:text='${content}':fontfile=${fontdir}:expansion=normal:x=w-line_h\*6:y=h-line_h\*3:shadowx=2:shadowy=2:${fontbg}"
             drawtext2="drawtext=fontsize=${newfontsize2}:fontcolor=${fontcolor}:text='${strline}':fontfile=${fontdir}:expansion=normal:x=w-mod(max(t-4\,0)*(w+tw)/85\,(w+tw)):y=5:shadowx=2:shadowy=2:${fontbg}"
-            drawtext3="drawtext=fontsize=${newfontsize2}:fontcolor=${fontcolor}:text='${content2}':fontfile=${fontdir}:expansion=normal:x=w-line_h\*4:y=h/2-line_h\*3:shadowx=2:shadowy=2:${fontbg}"
+            drawtext3="drawtext=fontsize=${newfontsize2}:fontcolor=${fontcolor}:text='${content2}':fontfile=${fontdir}:expansion=normal:x=line_h\*2:y=h/2-line_h\*3:shadowx=2:shadowy=2:${fontbg}"
+            watermark="movie=${curdir}/logo/logo.png[watermark];[in][watermark]overlay=main_w-overlay_w\*3-10:overlay_h+10[out]"
             video_format1="${vf_light1},${drawtext1},${drawtext2},${drawtext3},${delogo1}"
             echo ffmpeg -loglevel "${logging}" -re -i "${next_video}" -preset ${preset_decode_speed} -vf "${video_format1}" -vcodec libx264 -g 60 -b:v 6000k -c:a aac -b:a 128k -strict -2 -f flv ${rtmp}
             ffmpeg -loglevel "${logging}" -re -i "${next_video}" -preset ${preset_decode_speed} -vf "${video_format1}" -vcodec libx264 -g 60 -b:v 6000k -c:a aac -b:a 128k -strict -2 -f flv ${rtmp}
@@ -297,50 +301,39 @@ stream_play(){
     #获取真正字体
     newfontsize=$(get_fontsize ${file})
     echo newfontsize=${newfontsize}
-    halfnewfontsize=$(expr ${newfontsize} \* 2 / 3)
+    halfnewfontsize=$(expr ${newfontsize} \* 82 / 100)
+    rm -rf ${curdir}/logo/logo.png 
+    ffmpeg -i ${curdir}/logo/wuxia.png -vf "scale=${halfnewfontsize}:-1" ${curdir}/logo/logo.png 
     # 叠加字体
 
     duration=$(get_duration2 "${file}")
     content="%{pts\:gmtime\:0\:%H\\\\\:%M\\\\\:%S}${enter}${duration}"
-    drawtext="drawtext=fontsize=${halfnewfontsize}:fontcolor=${fontcolor}:text='${content}':fontfile=${fontdir}:expansion=normal:x=5:y=h-line_h\*2-10:shadowx=2:shadowy=2:${fontbg}"
+    drawtext="drawtext=fontsize=${halfnewfontsize}:fontcolor=${fontcolor}:text='${content}':fontfile=${fontdir}:expansion=normal:x=x=w-line_h\*6:y=h-line_h\*3:shadowx=2:shadowy=2:${fontbg}"
     #从左往右drawtext2="drawtext=fontsize=${newfontsize}:fontcolor=${fontcolor}:text='${news}':fontfile=${fontdir}:expansion=normal:x=(mod(5*n\,w+tw)-tw):y=h-line_h-10:shadowx=2:shadowy=2:${fontbg}"
     #从右到左
     drawtext2="drawtext=fontsize=${newfontsize}:fontcolor=${fontcolor}:text='${strline}':fontfile=${fontdir}:expansion=normal:x=w-mod(max(t-1\,0)*(w+tw)/215\,(w+tw)):y=5:shadowx=2:shadowy=2:${fontbg}"
     cur_file2=$(digit_half2full ${cur_file})
     file_count2=$(digit_half2full ${file_count})
-    drawtext3="drawtext=fontsize=${newfontsize}:fontcolor=${fontcolor}:text='第${enter}${cur_file2}${enter}集${enter}${enter}共${enter}${file_count2}${enter}集':fontfile=${fontdir}:expansion=normal:x=w-line_h\*3:y=h/2-line_h\*3:shadowx=2:shadowy=2:${fontbg}"
+    drawtext3="drawtext=fontsize=${newfontsize}:fontcolor=${fontcolor}:text='第${enter}${cur_file2}${enter}集${enter}${enter}共${enter}${file_count2}${enter}集':fontfile=${fontdir}:expansion=normal:x=line_h\*2:y=h/2-line_h\*3:shadowx=2:shadowy=2:${fontbg}"
+    watermark="movie=${curdir}/logo/logo.png[watermark];[in][watermark]overlay=main_w-overlay_w\*3-10:overlay_h+10[out]"
     video_format="${video_format},${drawtext},${drawtext2},${drawtext3}"
     
     date1=$(date +"%Y-%m-%d %H:%M:%S") 
     
-    if [ "$image" = "" ];then
-        echo -e "${yellow} 你选择不添加水印,程序将开始推流. ${font}"
-        if [ "${maps}" = "" ]; then
-          echo ffmpeg -loglevel "${logging}"  -re -i "$file"  -map ${mapv} -map ${mapa} -preset ${preset_decode_speed} -vf "${video_format}" -vcodec libx264 -g 60 -b:v 6000k -c:a aac -b:a 128k -strict -2 -f flv ${rtmp}
-          if [ "${mode}" != "test" ];then
-              ffmpeg -loglevel "${logging}" -re -i "$file" -map ${mapv} -map ${mapa} -preset ${preset_decode_speed} -vf "${video_format}" -vcodec libx264 -g 60 -b:v 6000k -c:a aac -b:a 128k -strict -2 -f flv ${rtmp}
-          fi
-        else
-          echo ffmpeg -loglevel "${logging}" -re -i "$file" -map ${mapv} -map ${mapa} -preset ${preset_decode_speed} -vf "${video_format}" -vcodec libx264 -g 60 -b:v 6000k -c:a aac -b:a 128k -strict -2 -f flv ${rtmp}
-          if [ "${mode}" != "test" ];then
-              ffmpeg -loglevel "${logging}" -re -i "$file" -map ${mapv} -map ${mapa} -preset ${preset_decode_speed} -vf "${video_format}" -vcodec libx264 -g 60 -b:v 6000k -c:a aac -b:a 128k -strict -2 -f flv ${rtmp}
-          fi
-        fi
+
+    echo -e "${yellow} 你选择不添加水印,程序将开始推流. ${font}"
+    if [ "${maps}" = "" ]; then
+      echo ffmpeg -loglevel "${logging}"  -re -i "$file"  -map ${mapv} -map ${mapa} -preset ${preset_decode_speed} -vf "${video_format}"  -vcodec libx264 -g 60 -b:v 6000k -c:a aac -b:a 128k -strict -2 -f flv ${rtmp}
+      if [ "${mode}" != "test" ];then
+          ffmpeg -loglevel "${logging}" -re -i "$file" -map ${mapv} -map ${mapa} -preset ${preset_decode_speed} -vf "${video_format}"  -vcodec libx264 -g 60 -b:v 6000k -c:a aac -b:a 128k -strict -2 -f flv ${rtmp}
+      fi
     else
-        echo -e "${yellow} 添加水印完成,程序将开始推流. ${font}" 
-        watermark="overlay=W-w-5:5"
-        if [ "${maps}" = "" ]; then
-          echo ffmpeg -loglevel "${logging}" -re  -i "$file"  -map ${mapv} -map ${mapa} -preset ${preset_decode_speed} -vf "${video_format}"  -i "${image}" -filter_complex "${watermark}" -c:v libx264 -c:a aac -b:a 192k  -strict -2 -f flv ${rtmp}
-          if [ "${mode}" != "test" ];then
-              ffmpeg -loglevel "${logging}" -re -i "$file"  -map ${mapv} -map ${mapa} -preset ${preset_decode_speed} -vf "${video_format}"  -i "${image}" -filter_complex "${watermark}" -c:v libx264 -c:a aac -b:a 192k  -strict -2 -f flv ${rtmp}
-          fi
-        else
-          echo ffmpeg -loglevel "${logging}" -re -i "$file"  -map ${mapv} -map ${mapa} -preset ${preset_decode_speed} -vf "${video_format}"  -i "${image}" -filter_complex "${watermark}" -c:v libx264 -c:a aac -b:a 192k  -strict -2 -f flv ${rtmp}
-          if [ "${mode}" != "test" ];then
-              ffmpeg -loglevel "${logging}" -re -i "$file" -map ${mapv} -map ${mapa} -preset ${preset_decode_speed} -vf "${video_format}"  -i "${image}" -filter_complex "${watermark}" -c:v libx264 -c:a aac -b:a 192k  -strict -2 -f flv ${rtmp}
-          fi
-        fi
+      echo ffmpeg -loglevel "${logging}" -re -i "$file" -map ${mapv} -map ${mapa} -preset ${preset_decode_speed} -vf "${video_format}"  -vcodec libx264 -g 60 -b:v 6000k -c:a aac -b:a 128k -strict -2 -f flv ${rtmp}
+      if [ "${mode}" != "test" ];then
+          ffmpeg -loglevel "${logging}" -re -i "$file" -map ${mapv} -map ${mapa} -preset ${preset_decode_speed} -vf "${video_format}"  -vcodec libx264 -g 60 -b:v 6000k -c:a aac -b:a 128k -strict -2 -f flv ${rtmp}
+      fi
     fi
+
 
     date2=$(date +"%Y-%m-%d %H:%M:%S")
 
