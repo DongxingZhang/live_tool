@@ -33,7 +33,7 @@ enter=`echo -e "\n''"`
 split=`echo -e "\t''"`
 
 #休息时间
-rest_start=21
+rest_start=23
 rest_end=6
 
 get_rest(){
@@ -402,7 +402,6 @@ stream_start(){
         next=$(get_play_next)
         stream_play_main "${next}" "${play_mode}" "${mode}"  
         sleep 1
-        break
     done
 }
 
