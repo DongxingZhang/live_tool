@@ -27,7 +27,7 @@ waitingvc2=${curdir}/myvideono2
 fontdir=${curdir}/fonts/STFANGSO.TTF
 fontsize=70
 fontcolor=#FDE6E0
-fontbg="box=1: boxcolor=black@0.3:boxborderw=3"
+fontbg="box=1:boxcolor=black@0.3:boxborderw=3"
 
 enter=`echo -e "\n''"`
 split=`echo -e "\t''"`
@@ -308,7 +308,7 @@ stream_play(){
 
     duration=$(get_duration2 "${file}")
     content="%{pts\:gmtime\:0\:%H\\\\\:%M\\\\\:%S}${enter}${duration}"
-    drawtext="drawtext=fontsize=${halfnewfontsize}:fontcolor=${fontcolor}:text='${content}':fontfile=${fontdir}:expansion=normal:x=x=w-line_h\*6:y=h-line_h\*3:shadowx=2:shadowy=2:${fontbg}"
+    drawtext="drawtext=fontsize=${halfnewfontsize}:fontcolor=${fontcolor}:text='${content}':fontfile=${fontdir}:expansion=normal:x=w-line_h\*6:y=h-line_h\*3:shadowx=2:shadowy=2:${fontbg}"
     #从左往右drawtext2="drawtext=fontsize=${newfontsize}:fontcolor=${fontcolor}:text='${news}':fontfile=${fontdir}:expansion=normal:x=(mod(5*n\,w+tw)-tw):y=h-line_h-10:shadowx=2:shadowy=2:${fontbg}"
     #从右到左
     drawtext2="drawtext=fontsize=${newfontsize}:fontcolor=${fontcolor}:text='${strline}':fontfile=${fontdir}:expansion=normal:x=w-mod(max(t-1\,0)*(w+tw)/215\,(w+tw)):y=5:shadowx=2:shadowy=2:${fontbg}"
