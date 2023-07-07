@@ -14,26 +14,26 @@ rtmp="rtmp://live-push.bilivideo.com/live-bvc/?streamname=live_97540856_1852534&
 
 
 # 配置水印文件
-image=1
 curdir=`pwd`
-playlist=${curdir}/playlist.m3u
-playlist_done=${curdir}/playlist_done.m3u
+playlist="${curdir}/playlist.m3u"
+playlist_done="${curdir}/playlist_done.m3u"
 
-waiting=$(cat ${curdir}/rest.m3u)
-waitingvc=${curdir}/myvideono
-waiting2=/mnt/smb/videos2
-waitingvc2=${curdir}/myvideono2
+restlist="${curdir}/rest.m3u"
+waitingvc="${curdir}/videono"
 
 fontdir=${curdir}/fonts/STFANGSO.TTF
 fontsize=70
 fontcolor=#FDE6E0
 fontbg="box=1:boxcolor=black@0.3:boxborderw=3"
 
+logging="repeat+level+warning"
+preset_decode_speed="ultrafast"
+
 enter=`echo -e "\n''"`
 split=`echo -e "\t''"`
 
 #休息时间
-rest_start=23
+rest_start=21
 rest_end=6
 
 get_rest(){
@@ -54,16 +54,30 @@ get_rest(){
     fi
 }
 
-get_videos_real(){
+get_rest_videos_real(){
     waitingdir=$1
     videonofile=$2
     videono=0
     declare -a filenamelist
-    for subdirfile in ${waitingdir}/*; do
-        filename=`echo ${subdirfile} | awk -F "/" '{print $NF}'`
-        filenamelist[$videono]=${filename}
-        videono=$(expr $videono + 1)   
-    done
+    for line in `cat ${waitingdir}`
+    do
+        line=`echo ${line} | tr -d '\r'`
+        line=`echo ${line} | tr -d '\n'`
+
+        arr=(${line//|/ }) 
+        video_type=${arr[0]} 
+        lighter=${arr[1]} 
+        audio=${arr[2]}
+        subtitle=${arr[3]}
+        param=${arr[4]}
+        videopath=${arr[5]}
+
+        for subdirfile in ${videopath}/*; do
+            filename=`echo ${subdirfile} | awk -F "/" '{print $NF}'`
+            filenamelist[$videono]=${videopath}/${filename}
+            videono=$(expr $videono + 1)   
+        done
+    done	
     video_lengh=${#filenamelist[@]}
     touch ${videonofile}
     next_video=`cat ${videonofile}`
@@ -76,16 +90,13 @@ get_videos_real(){
     fi
     next_next_video=$(expr $next_video + 1)
     echo "${next_next_video}" > ${videonofile}
-    echo "${waitingdir}/${filenamelist[$next_video]}"
+    echo "${video_type}|${lighter}|${audio}|${subtitle}|${param}|${filenamelist[$next_video]}||"
 }
 
-get_videos(){
-   get_videos_real ${waiting} ${waitingvc}
+get_rest_video(){
+    get_rest_videos_real ${restlist} ${waitingvc}
 }
 
-get_videos2(){
-   get_videos_real ${waiting2} ${waitingvc2}
-}
 
 echo "推流地址和推流码:${rtmp}"
 echo "水印文件:${image}"
@@ -148,248 +159,232 @@ digit_half2full(){
     fi
 }
 
-stream_play(){
-    file=$1
-    video_type=$2
-    audio=$3
-    subtitle=$4
-    file_count=$5
-    cur_file=$6
-    mode=$7
+stream_play_main(){
+    line=$1
 
-    if [[ -d "${file}" ]];then
-        return
+    line=`echo ${line} | tr -d '\r'`
+    line=`echo ${line} | tr -d '\n'`
+
+    arr=(${line//|/ }) 
+    video_type=${arr[0]} 
+    lighter=${arr[1]} 
+    audio=${arr[2]}
+    subtitle=${arr[3]}
+    param=${arr[4]}
+    videopath=${arr[5]}
+    cur_file=${arr[6]}
+    file_count=${arr[7]}
+    play_mode=$2
+    mode=$3
+
+    if [[ -d "${videopath}" ]];then
+        return 0
     fi
 
-    echo "$mode"	
     if [ "${mode}" != "test" ];then
         killall ffmpeg
     fi
    
-    # 文件超过50GB不要播放
-    maxsize=50000000000
-    actualsize=$(wc -c <"$file")
-    echo $actualsize
+    # 文件超过5GB不要播放
+    maxsize=5000000000
+    actualsize=$(wc -c <"$videopath")
+    echo 文件大小:$actualsize
     if [ $actualsize -ge $maxsize ]; then
         return 0
     fi
-    
-    # 已经播放过的不要播放
-    if [[ -e "${playlist_done}" ]] && cat "${playlist_done}" | grep "$file" > /dev/null; then
-        echo "已经播放过视频${file}"
-        return
-    fi
-   
-    echo "推送${file}"
-    logging="repeat+level+warning"
-    preset_decode_speed="ultrafast"
 
+    echo "推送${videopath}"
+
+    video_track=$(get_stream_track "${videopath}" "video")
+    video_track_decode=$(get_stream_track "${videopath}" "video")
+    audio_track=$(get_stream_track "${videopath}" "audio")
+    audio_track_decode=$(get_stream_track "${videopath}" "audio")
+    sub_track=$(get_stream_track "${videopath}" "subtitle")
+    sub_track_decode=$(get_stream_track "${videopath}" "subtitle")
+    
+    if [ "$video_track" = "" ];then
+        echo "${videopath} 没有视频轨道"
+        echo "${videopath}" >> "${playlist_done}"
+        return 
+    fi
+    
+    if [ "$audio_track" = "" ];then
+        echo "${videopath} 没有音频轨道"
+        echo "${videopath}" >> "${playlist_done}"
+        return 
+    fi
+    
+    maps=
+    if [ "$sub_track" != "" ];then
+        maps="0:${sub_track}"
+    fi
+
+    mapv="0:${video_track}"
+    mapa="0:${audio_track}"
+
+    if [ "${audio}" != "F" ]; then
+        mapa="0:${audio}"
+    fi
+    
+    if [ "${subtitle}" != "F" ]; then
+        maps="0:${subtitle}"
+    fi
+
+    echo ${mapv}, ${mapa}, ${maps}
+
+    #读取天气预报
+    cat <( curl -s http://www.nmc.cn/publish/forecast/  ) | tr -s '\n' ' ' |  sed  's/<div class="col-xs-4">/\n/g' | sed -E 's/<[^>]+>//g' | awk -F ' ' 'NF==5{print $1,$2,$3}' | head -n 32 | tr -s '\n' ';' | sed 's/徐家汇/上海/g' | sed 's/长沙市/长沙/g' >  ${curdir}/news.txt
+    strline=$(cat ${curdir}/news.txt)
+    echo $strline   
+
+    echo video_type=${video_type}   
     #去掉logo
-    if [ "${video_type:0:3}" = "YOU" ];then
+    if [ "${video_type}" = "YOU" ];then
         delogo="delogo=x=795:y=25:w=160:h=35:show=0,"
-    elif [ "${video_type:0:3}" = "TV0" ];then
+    elif [ "${video_type}" = "TV0" ];then
         delogo="delogo=x=965:y=40:w=75:h=60:show=0,"
-    elif [ "${video_type:0:3}" = "TV1" ];then
+    elif [ "${video_type}" = "TV1" ];then
         delogo="delogo=x=400:y=30:w=75:h=60:show=0,"
-    elif [ "${video_type:0:3}" = "TV2" ];then
+    elif [ "${video_type}" = "TV2" ];then
         delogo="delogo=x=525:y=30:w=85:h=60:show=0,"
-    elif [ "${video_type:0:3}" = "TV3" ];then
+    elif [ "${video_type}" = "TV3" ];then
         delogo="delogo=x=795:y=30:w=75:h=60:show=0,"
-    elif [ "${video_type:0:3}" = "CCV" ];then
+    elif [ "${video_type}" = "CCV" ];then
         delogo="delogo=x=80:y=50:w=155:h=120:show=0,"
-    elif [ "${video_type:0:3}" = "CC2" ];then
+    elif [ "${video_type}" = "CC2" ];then
         delogo="delogo=x=50:y=45:w=120:h=60:show=0,"
-    elif [ "${video_type:0:3}" = "TR0" ];then
+    elif [ "${video_type}" = "TR0" ];then
         delogo="delogo=x=5:y=5:w=1270:h=40:show=0,delogo=x=1050:y=610:w=200:h=100:show=0,delogo=x=250:y=580:w=750:h=120:show=0,"
-    elif [ "${video_type:0:3}" = "CC1" ];then #去掉CCTV6的标题
+    elif [ "${video_type}" = "CC1" ];then #去掉CCTV6的标题
         delogo="scale=w=1080:h=-1,delogo=x=945:y=40:w=75:h=60:show=0,delogo=x=945:y=500:w=75:h=60:show=0,delogo=x=60:y=40:w=200:h=80:show=0,delogo=x=20:y=490:w=400:h=100:show=0,delogo=x=945:y=340:w=75:h=100:show=0,"
-    elif [ "${video_type:0:3}" = "AT0" ];then
+    elif [ "${video_type}" = "AT0" ];then
         delogo="delogo=x=560:y=5:w=64:h=68:show=0,delogo=x=560:y=490:w=140:h=45:show=0,"
-    elif [ "${video_type:0:3}" = "TWV" ];then
+    elif [ "${video_type}" = "TWV" ];then
         delogo="delogo=x=1042:y=58:w=190:h=86:show=0,delogo=x=94:y=38:w=248:h=60:show=0,"
     else
         delogo=""
     fi
 
-    if [ "${video_type:3:1}" != "F" ];then
+    if [ "${lighter}" != "F" ];then
         video_format="${delogo}eq=contrast=1:brightness=0.2,curves=preset=lighter"
     else
         video_format="${delogo}eq=contrast=1"
     fi
-    
-    video_track=$(get_stream_track "${file}" "video")
-    video_track_decode=$(get_stream_track "${file}" "video")
-    audio_track=$(get_stream_track "${file}" "audio")
-    audio_track_decode=$(get_stream_track "${file}" "audio")
-    sub_track=$(get_stream_track "${file}" "subtitle")
-    sub_track_decode=$(get_stream_track "${file}" "subtitle")
-    
-    if [ "$video_track" = "" ];then
-        echo "${file} 没有视频轨道"
-        echo "$file" >> "${playlist_done}"
-        return 
-    fi
-    
-    if [ "$audio_track" = "" ];then
-        echo "${file} 没有音频轨道"
-        echo "$file" >> "${playlist_done}"
-        return 
-    fi
-    
-    mapv="0:${video_track}"
-    mapa="0:${audio_track}"
-    if [ "$sub_track" != "" ];then
-        maps="0:${sub_track}"
-    fi
-    if [ "${audio}" != "9" ]; then
-        mapa="0:${audio}"
-    fi
-    if [ "${subtitle}" != "9" ]; then
-        maps="0:${subtitle}"
-    fi
-    
-    
-    #读取天气预报
-    cat <( curl -s http://www.nmc.cn/publish/forecast/  ) | tr -s '\n' ' ' |  sed  's/<div class="col-xs-4">/\n/g' | sed -E 's/<[^>]+>//g' | awk -F ' ' 'NF==5{print $1,$2,$3}' | head -n 32 | tr -s '\n' ';' | sed 's/徐家汇/上海/g' | sed 's/长沙市/长沙/g' >  ${curdir}/news.txt
-    strline=$(cat ${curdir}/news.txt)
-    echo $strline   
-    
-    echo ${mapv}, ${mapa}, ${maps}
-    
-    if [ "${mode}" != "test" ]; then
-        while true 
-        do
-            if [ "$(get_rest)" = "rest" ]; then
-                next_video=$(get_videos)
-                duration=$(get_duration2 "${next_video}")
-                content="%{pts\:gmtime\:0\:%H\\\\\:%M\\\\\:%S}${enter}${duration}"
-                rest_start2=$(digit_half2full ${rest_start})
-                res_end2=$(expr $rest_end + 1)
-                res_end2=$(digit_half2full ${res_end2})
-                content2="${rest_start2}${enter}点${enter}到${enter}${res_end2}${enter}点${enter}循${enter}环${enter}播${enter}放${enter}"
-            else
-                break
-                # 每集电视剧之间不播放歌曲
-                next_video=$(get_videos2)
-                duration=$(get_duration2 "${next_video}")
-                content="%{pts\:gmtime\:0\:%H\\\\\:%M\\\\\:%S}${enter}${duration}"
-                content2="休${enter}息${enter}一${enter}下${enter}${enter}稍${enter}后${enter}继${enter}续"
-            fi
-            
-            #获取真正字体
-            newfontsize2=$(get_fontsize ${next_video})
-            echo newfontsize2=${newfontsize2}
-            halfnewfontsize2=$(expr ${newfontsize2} \* 82 / 100)
-            rm -rf ${curdir}/logo/logo.png 
-            ffmpeg -i ${curdir}/logo/wuxia.png -vf "scale=${halfnewfontsize2}:-1" ${curdir}/logo/logo.png            
-            vf_light1="eq=contrast=1:brightness=0.15,curves=preset=lighter"
-            delogo1="delogo=x=965:y=40:w=75:h=60:show=0"
-            drawtext1="drawtext=fontsize=${halfnewfontsize2}:fontcolor=${fontcolor}:text='${content}':fontfile=${fontdir}:expansion=normal:x=w-line_h\*6:y=h-line_h\*3:shadowx=2:shadowy=2:${fontbg}"
-            drawtext2="drawtext=fontsize=${newfontsize2}:fontcolor=${fontcolor}:text='${strline}':fontfile=${fontdir}:expansion=normal:x=w-mod(max(t-4\,0)*(w+tw)/85\,(w+tw)):y=5:shadowx=2:shadowy=2:${fontbg}"
-            drawtext3="drawtext=fontsize=${newfontsize2}:fontcolor=${fontcolor}:text='${content2}':fontfile=${fontdir}:expansion=normal:x=line_h\*2:y=h/2-line_h\*3:shadowx=2:shadowy=2:${fontbg}"
-            watermark="movie=${curdir}/logo/logo.png[watermark];[in][watermark]overlay=main_w-overlay_w\*3-10:overlay_h+10[out]"
-            video_format1="${vf_light1},${drawtext1},${drawtext2},${drawtext3},${delogo1}"
-            echo ffmpeg -loglevel "${logging}" -re -i "${next_video}" -preset ${preset_decode_speed} -vf "${video_format1}" -vcodec libx264 -g 60 -b:v 6000k -c:a aac -b:a 128k -strict -2 -f flv ${rtmp}
-            ffmpeg -loglevel "${logging}" -re -i "${next_video}" -preset ${preset_decode_speed} -vf "${video_format1}" -vcodec libx264 -g 60 -b:v 6000k -c:a aac -b:a 128k -strict -2 -f flv ${rtmp}
-            
-            if [ "$(get_rest)" != "rest" ]; then
-                break
-            fi
-        done
-    fi
-    
-    #获取真正字体
-    newfontsize=$(get_fontsize ${file})
-    echo newfontsize=${newfontsize}
-    halfnewfontsize=$(expr ${newfontsize} \* 82 / 100)
-    rm -rf ${curdir}/logo/logo.png 
-    ffmpeg -i ${curdir}/logo/wuxia.png -vf "scale=${halfnewfontsize}:-1" ${curdir}/logo/logo.png 
-    # 叠加字体
 
-    duration=$(get_duration2 "${file}")
+    #计算真正字体大小
+    newfontsize=$(get_fontsize ${videopath})
+    echo newfontsize=${newfontsize}
+    #计算时间字体大小
+    halfnewfontsize=$(expr ${newfontsize} \* 82 / 100)
+
+    #显示时长
+    duration=$(get_duration2 "${videopath}")
     content="%{pts\:gmtime\:0\:%H\\\\\:%M\\\\\:%S}${enter}${duration}"
-    drawtext="drawtext=fontsize=${halfnewfontsize}:fontcolor=${fontcolor}:text='${content}':fontfile=${fontdir}:expansion=normal:x=w-line_h\*6:y=h-line_h\*3:shadowx=2:shadowy=2:${fontbg}"
+    drawtext1="drawtext=fontsize=${halfnewfontsize}:fontcolor=${fontcolor}:text='${content}':fontfile=${fontdir}:expansion=normal:x=w-line_h\*8:y=h-line_h\*6:shadowx=2:shadowy=2:${fontbg}"
+    
+    #天气预报
     #从左往右drawtext2="drawtext=fontsize=${newfontsize}:fontcolor=${fontcolor}:text='${news}':fontfile=${fontdir}:expansion=normal:x=(mod(5*n\,w+tw)-tw):y=h-line_h-10:shadowx=2:shadowy=2:${fontbg}"
     #从右到左
-    drawtext2="drawtext=fontsize=${newfontsize}:fontcolor=${fontcolor}:text='${strline}':fontfile=${fontdir}:expansion=normal:x=w-mod(max(t-1\,0)*(w+tw)/215\,(w+tw)):y=5:shadowx=2:shadowy=2:${fontbg}"
-    cur_file2=$(digit_half2full ${cur_file})
-    file_count2=$(digit_half2full ${file_count})
-    drawtext3="drawtext=fontsize=${newfontsize}:fontcolor=${fontcolor}:text='第${enter}${cur_file2}${enter}集${enter}${enter}共${enter}${file_count2}${enter}集':fontfile=${fontdir}:expansion=normal:x=line_h\*2:y=h/2-line_h\*3:shadowx=2:shadowy=2:${fontbg}"
-    watermark="movie=${curdir}/logo/logo.png[watermark];[in][watermark]overlay=main_w-overlay_w\*3-10:overlay_h+10[out]"
-    video_format="${video_format},${drawtext},${drawtext2},${drawtext3}"
+    drawtext2="drawtext=fontsize=${newfontsize}:fontcolor=${fontcolor}:text='${strline}':fontfile=${fontdir}:expansion=normal:x=w-mod(max(t-1\,0)*(w+tw)/215\,(w+tw)):y=h-line_h-5:shadowx=2:shadowy=2:${fontbg}"
     
-    date1=$(date +"%Y-%m-%d %H:%M:%S") 
-    
+    echo ${cur_file}
+    echo ${file_count}
 
-    echo -e "${yellow} 你选择不添加水印,程序将开始推流. ${font}"
+    if [ "${file_count}" = "" ]; then
+        rest_start2=$(digit_half2full ${rest_start})
+        res_end2=$(expr $rest_end + 1)
+        res_end2=$(digit_half2full ${res_end2})
+        content2="${rest_start2}${enter}点${enter}到${enter}${res_end2}${enter}点${enter}休${enter}息${enter}"
+    else
+        cur_file2=$(digit_half2full ${cur_file})
+        file_count2=$(digit_half2full ${file_count})
+        content2="第${enter}${cur_file2}${enter}集${enter}${enter}共${enter}${file_count2}${enter}集"
+    fi
+    drawtext3="drawtext=fontsize=${newfontsize}:fontcolor=${fontcolor}:text='${content2}':fontfile=${fontdir}:expansion=normal:x=line_h\*2:y=h/2-line_h\*3:shadowx=2:shadowy=2:${fontbg}"    
+        
+    #watermark="movie=${curdir}/logo/logo.png[watermark];[in][watermark]overlay=main_w-overlay_w\*3-10:overlay_h+10[out]"
+    video_format="${video_format},${drawtext1},${drawtext2},${drawtext3}"
+
+    echo ${video_format}
+
+    date1=$(date +"%Y-%m-%d %H:%M:%S")     
+
     if [ "${maps}" = "" ]; then
-      echo ffmpeg -loglevel "${logging}"  -re -i "$file"  -map ${mapv} -map ${mapa} -preset ${preset_decode_speed} -vf "${video_format}"  -vcodec libx264 -g 60 -b:v 6000k -c:a aac -b:a 128k -strict -2 -f flv ${rtmp}
+      echo ffmpeg -loglevel "${logging}"  -re -i "$videopath"  -map ${mapv} -map ${mapa} -preset ${preset_decode_speed} -vf "${video_format}"  -vcodec libx264 -g 60 -b:v 6000k -c:a aac -b:a 128k -strict -2 -f flv ${rtmp}
       if [ "${mode}" != "test" ];then
-          ffmpeg -loglevel "${logging}" -re -i "$file" -map ${mapv} -map ${mapa} -preset ${preset_decode_speed} -vf "${video_format}"  -vcodec libx264 -g 60 -b:v 6000k -c:a aac -b:a 128k -strict -2 -f flv ${rtmp}
+          ffmpeg -loglevel "${logging}" -re -i "$videopath" -map ${mapv} -map ${mapa} -preset ${preset_decode_speed} -vf "${video_format}"  -vcodec libx264 -g 60 -b:v 6000k -c:a aac -b:a 128k -strict -2 -f flv ${rtmp}
       fi
     else
-      echo ffmpeg -loglevel "${logging}" -re -i "$file" -map ${mapv} -map ${mapa} -preset ${preset_decode_speed} -vf "${video_format}"  -vcodec libx264 -g 60 -b:v 6000k -c:a aac -b:a 128k -strict -2 -f flv ${rtmp}
+      echo ffmpeg -loglevel "${logging}" -re -i "$videopath" -map ${mapv} -map ${mapa} -map ${maps} -preset ${preset_decode_speed} -vf "${video_format}"  -vcodec libx264 -g 60 -b:v 6000k -c:a aac -b:a 128k -strict -2 -f flv ${rtmp}
       if [ "${mode}" != "test" ];then
-          ffmpeg -loglevel "${logging}" -re -i "$file" -map ${mapv} -map ${mapa} -preset ${preset_decode_speed} -vf "${video_format}"  -vcodec libx264 -g 60 -b:v 6000k -c:a aac -b:a 128k -strict -2 -f flv ${rtmp}
+          ffmpeg -loglevel "${logging}" -re -i "$videopath" -map ${mapv} -map ${mapa} -map ${maps} -preset ${preset_decode_speed} -vf "${video_format}"  -vcodec libx264 -g 60 -b:v 6000k -c:a aac -b:a 128k -strict -2 -f flv ${rtmp}
       fi
     fi
-
 
     date2=$(date +"%Y-%m-%d %H:%M:%S")
 
     sys_date1=$(date -d "$date1" +%s)
     sys_date2=$(date -d "$date2" +%s)
     time_seconds=`expr $sys_date2 - $sys_date1`
-    
-    if [ "${mode}" != "test" ] && [ "$?" = "0" ] && [ ${time_seconds} -ge 700 ]; then
-        echo "$file" >> "${playlist_done}"
+
+    if [ "${mode}" != "test" ] && [ ${time_seconds} -ge 700 ]; then
+        echo "$videopath" >> "${playlist_done}"
     fi
+   
 }
 
-stream_play_main(){
-    line=$1   
-    line=`echo ${line} | tr -d '\r'`
-    line=`echo ${line} | tr -d '\n'`
-    play_mode=$2
-    mode=$3
-   
-    # 判断是否要跳过   
-    flag=${line:0:1}
-    if [ "${flag}" = "#" ];then
-        return
-    fi
-   
-    video_type=${line:0:4}
-    audio=${line:4:1}
-    subtitle=${line:5:1}
-    line=${line:6}
-    echo $line
-    
-    if [[ -d "${line}" ]];then
-        echo $line
-        echo $play_mode
-        file_count=`ls -l $line  |grep "^-"|wc -l`
-        cur_file=0
-        for subdirfile in "$line"/*; do
-            cur_file=$(expr $cur_file + 1)
-            if [ "${play_mode}" = "random"  ] && [[ -e "${playlist_done}" ]] && cat "${playlist_done}" | grep "$subdirfile" > /dev/null; then
-                continue
-            fi
-            stream_play "${subdirfile}" "${video_type}" "${audio}" "${subtitle}" "${file_count}" "${cur_file}" "${mode}"    
-            if [ "${play_mode}" = "random"  ]; then
-                echo "next folder"
+
+get_playing_video(){
+    for line in $(cat ${playlist})
+    do    
+        line=`echo ${line} | tr -d '\r'`
+        line=`echo ${line} | tr -d '\n'`     
+        # 判断是否要跳过   
+        flag=${line:0:1}
+        if [ "${flag}" = "#" ];then
+            continue 
+        fi       
+        arr=(${line//|/ }) 
+        video_type=${arr[0]} 
+        lighter=${arr[1]} 
+        audio=${arr[2]}
+        subtitle=${arr[3]}
+        param=${arr[4]}
+        videopath=${arr[5]}
+
+        if [[ -d "${videopath}" ]];then
+            found=0
+            cur_file=0
+            file_count=`ls -l ${videopath}  |grep "^-"|wc -l`
+            for subdirfile in "${videopath}"/*; do           
+                cur_file=$(expr $cur_file + 1)
+                if [[ -e "${playlist_done}" ]] && cat "${playlist_done}" | grep "$subdirfile" > /dev/null; then
+                    continue
+                fi
+                found=1
+      	        echo "${video_type}|${lighter}|${audio}|${subtitle}|${param}|${subdirfile}|${cur_file}|${file_count}"
+	            break
+            done
+            if [[ "${found}" = "1" ]];then
                 break
-            fi
-        done
-        echo "播放完毕"
-    elif [[ -f "${line}" ]] ; then
-        stream_play "${line}" "${video_type}" "${audio}" "${subtitle}" 1 1 "${mode}"
-        echo "播放完毕"
-    else
-        echo "目录或者文件${line}不识别"
-    fi
-   
+	        fi
+        elif [[ -f "${videopath}" ]] ; then
+            echo "${video_type}|${lighter}|${audio}|${subtitle}|${param}|${videopath}|1|1"
+	        break
+        fi
+    done
 }
+
+
+get_play_next(){
+    if [ "$(get_rest)" = "rest" ]; then
+        next_video_path=$(get_rest_video)
+    else
+        next_video_path=$(get_playing_video)
+    fi    
+    echo ${next_video_path}
+}
+
 
 stream_start(){    
     play_mode=$1
@@ -397,25 +392,17 @@ stream_start(){
 
     if [[ $rtmp =~ "rtmp://" ]];then
         echo -e "${green} 推流地址输入正确,程序将进行下一步操作. ${font}"
-        sleep 2
     else  
         echo -e "${red} 你输入的地址不合法,请重新运行程序并输入! ${font}"
         exit 1
     fi 
 
-
     while true
     do
-      for line in `cat ${playlist}`
-      do
-          echo "File:${line}"
-	        date
-          stream_play_main "${line}" "${play_mode}" "${mode}"
-          date
-      done
-      # 等待1秒钟再一次读取播放列表
-      sleep 1
-      echo “再次读取下一个目录......................”
+        next=$(get_play_next)
+        stream_play_main "${next}" "${play_mode}" "${mode}"  
+        sleep 1
+        break
     done
 }
 
@@ -443,7 +430,7 @@ stream_append(){
                 if [[ -e "${playlist}" ]] && cat "${playlist}" | grep "${filenamelist[$vindex]}" > /dev/null; then
                     echo "已经添加过/mnt/smb/电视剧/${filenamelist[$vindex]},不要再添加."
                 else
-                    echo "000099/mnt/smb/电视剧/${filenamelist[$vindex]}" >> ${playlist}
+                    echo "000|0|9|9|0|/mnt/smb/电视剧/${filenamelist[$vindex]}" >> ${playlist}
                     echo "添加/mnt/smb/电视剧/${filenamelist[$vindex]}成功"  
                 fi                
             fi
@@ -462,6 +449,7 @@ stream_append(){
 stream_stop(){
     killall ffmpeg
 }
+
 
 # 开始菜单设置
 echo -e "${yellow} FFmpeg无人值守直播工具(version 1.1) ${font}"
@@ -495,7 +483,7 @@ start_menu(){
         stream_start "${param}" "${mode}"
         ;;
         3)
-        stream_play_main "000099${param}"
+        stream_play_main "000|0|9|9|0|${param}"
         ;;
         4)
         stream_append "${param}"
