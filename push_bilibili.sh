@@ -15,11 +15,11 @@ rtmp="rtmp://live-push.bilivideo.com/live-bvc/?streamname=live_97540856_1852534&
 
 # 配置水印文件
 curdir=`pwd`
-playlist="${curdir}/playlist.m3u"
-playlist_done="${curdir}/playlist_done.m3u"
+playlist="${curdir}/list/playlist.m3u"
+playlist_done="${curdir}/list/playlist_done.m3u"
 
-restlist="${curdir}/rest.m3u"
-waitingvc="${curdir}/videono"
+restlist="${curdir}/list/rest.m3u"
+waitingvc="${curdir}/count/videono"
 
 fontdir=${curdir}/fonts/STFANGSO.TTF
 fontsize=70
@@ -233,8 +233,8 @@ stream_play_main(){
     echo ${mapv}, ${mapa}, ${maps}
 
     #读取天气预报
-    cat <( curl -s http://www.nmc.cn/publish/forecast/  ) | tr -s '\n' ' ' |  sed  's/<div class="col-xs-4">/\n/g' | sed -E 's/<[^>]+>//g' | awk -F ' ' 'NF==5{print $1,$2,$3}' | head -n 32 | tr -s '\n' ';' | sed 's/徐家汇/上海/g' | sed 's/长沙市/长沙/g' >  ${curdir}/news.txt
-    strline=$(cat ${curdir}/news.txt)
+    cat <( curl -s http://www.nmc.cn/publish/forecast/  ) | tr -s '\n' ' ' |  sed  's/<div class="col-xs-4">/\n/g' | sed -E 's/<[^>]+>//g' | awk -F ' ' 'NF==5{print $1,$2,$3}' | head -n 32 | tr -s '\n' ';' | sed 's/徐家汇/上海/g' | sed 's/长沙市/长沙/g' >  ${curdir}/log/news.txt
+    strline=$(cat ${curdir}/log/news.txt)
     echo $strline   
 
     echo video_type=${video_type}   
@@ -327,7 +327,7 @@ stream_play_main(){
     sys_date2=$(date -d "$date2" +%s)
     time_seconds=`expr $sys_date2 - $sys_date1`
 
-    if [ "${mode}" != "test" ] && [ ${time_seconds} -ge 700 ]; then
+    if [ "${mode}" != "test" ] && [ ${time_seconds} -ge 700 ] && [ "${file_count}" != "" ]; then
         echo "$videopath" >> "${playlist_done}"
     fi
    
