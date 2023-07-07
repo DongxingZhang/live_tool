@@ -15,11 +15,11 @@ rtmp="rtmp://live-push.bilivideo.com/live-bvc/?streamname=live_97540856_1852534&
 
 # 配置水印文件
 curdir=`pwd`
-playlist="${curdir}/playlist.m3u"
-playlist_done="${curdir}/playlist_done.m3u"
+playlist="${curdir}/list/playlist.m3u"
+playlist_done="${curdir}/list/playlist_done.m3u"
 
-restlist="${curdir}/rest.m3u"
-waitingvc="${curdir}/videono"
+restlist="${curdir}/list/rest.m3u"
+waitingvc="${curdir}/count/videono"
 
 fontdir=${curdir}/fonts/STFANGSO.TTF
 fontsize=70
@@ -57,6 +57,7 @@ get_rest(){
 get_rest_videos_real(){
     waitingdir=$1
     videonofile=$2
+    mode=$3
     videono=0
     declare -a filenamelist
     for line in `cat ${waitingdir}`
@@ -88,13 +89,16 @@ get_rest_videos_real(){
     if [ ${next_video} -ge ${video_lengh} ]; then
         next_video=0
     fi
-    next_next_video=$(expr $next_video + 1)
-    echo "${next_next_video}" > ${videonofile}
+    if [ "${mode}" != "test" ];then 
+       next_next_video=$(expr $next_video + 1)
+       echo "${next_next_video}" > ${videonofile}
+    fi
     echo "${video_type}|${lighter}|${audio}|${subtitle}|${param}|${filenamelist[$next_video]}||"
 }
 
 get_rest_video(){
-    get_rest_videos_real ${restlist} ${waitingvc}
+    mode=$1
+    get_rest_videos_real ${restlist} ${waitingvc} ${mode}
 }
 
 
@@ -233,8 +237,8 @@ stream_play_main(){
     echo ${mapv}, ${mapa}, ${maps}
 
     #读取天气预报
-    cat <( curl -s http://www.nmc.cn/publish/forecast/  ) | tr -s '\n' ' ' |  sed  's/<div class="col-xs-4">/\n/g' | sed -E 's/<[^>]+>//g' | awk -F ' ' 'NF==5{print $1,$2,$3}' | head -n 32 | tr -s '\n' ';' | sed 's/徐家汇/上海/g' | sed 's/长沙市/长沙/g' >  ${curdir}/news.txt
-    strline=$(cat ${curdir}/news.txt)
+    cat <( curl -s http://www.nmc.cn/publish/forecast/  ) | tr -s '\n' ' ' |  sed  's/<div class="col-xs-4">/\n/g' | sed -E 's/<[^>]+>//g' | awk -F ' ' 'NF==5{print $1,$2,$3}' | head -n 32 | tr -s '\n' ';' | sed 's/徐家汇/上海/g' | sed 's/长沙市/长沙/g' >  ${curdir}/log/news.txt
+    strline=$(cat ${curdir}/log/news.txt)
     echo $strline   
 
     echo video_type=${video_type}   
@@ -280,7 +284,7 @@ stream_play_main(){
     #显示时长
     duration=$(get_duration2 "${videopath}")
     content="%{pts\:gmtime\:0\:%H\\\\\:%M\\\\\:%S}${enter}${duration}"
-    drawtext1="drawtext=fontsize=${halfnewfontsize}:fontcolor=${fontcolor}:text='${content}':fontfile=${fontdir}:expansion=normal:x=w-line_h\*8:y=h-line_h\*6:shadowx=2:shadowy=2:${fontbg}"
+    drawtext1="drawtext=fontsize=${halfnewfontsize}:fontcolor=${fontcolor}:text='${content}':fontfile=${fontdir}:expansion=normal:x=w-line_h\*5-15:y=h-line_h\*6:shadowx=2:shadowy=2:${fontbg}"
     
     #天气预报
     #从左往右drawtext2="drawtext=fontsize=${newfontsize}:fontcolor=${fontcolor}:text='${news}':fontfile=${fontdir}:expansion=normal:x=(mod(5*n\,w+tw)-tw):y=h-line_h-10:shadowx=2:shadowy=2:${fontbg}"
@@ -312,12 +316,12 @@ stream_play_main(){
     if [ "${maps}" = "" ]; then
       echo ffmpeg -loglevel "${logging}"  -re -i "$videopath"  -map ${mapv} -map ${mapa} -preset ${preset_decode_speed} -vf "${video_format}"  -vcodec libx264 -g 60 -b:v 6000k -c:a aac -b:a 128k -strict -2 -f flv ${rtmp}
       if [ "${mode}" != "test" ];then
-          ffmpeg -loglevel "${logging}" -re -i "$videopath" -map ${mapv} -map ${mapa} -preset ${preset_decode_speed} -vf "${video_format}"  -vcodec libx264 -g 60 -b:v 6000k -c:a aac -b:a 128k -strict -2 -f flv ${rtmp}
+          ffmpeg -loglevel "${logging}" -re -i "$videopath" -map ${mapv} -map ${mapa} -preset ${preset_decode_speed} -vf "${video_format}"  -vcodec libx264 -g 60 -b:v 6000k -c:a aac -b:a 128k -strict -2 -f flv -y ${rtmp}
       fi
     else
       echo ffmpeg -loglevel "${logging}" -re -i "$videopath" -map ${mapv} -map ${mapa} -map ${maps} -preset ${preset_decode_speed} -vf "${video_format}"  -vcodec libx264 -g 60 -b:v 6000k -c:a aac -b:a 128k -strict -2 -f flv ${rtmp}
       if [ "${mode}" != "test" ];then
-          ffmpeg -loglevel "${logging}" -re -i "$videopath" -map ${mapv} -map ${mapa} -map ${maps} -preset ${preset_decode_speed} -vf "${video_format}"  -vcodec libx264 -g 60 -b:v 6000k -c:a aac -b:a 128k -strict -2 -f flv ${rtmp}
+          ffmpeg -loglevel "${logging}" -re -i "$videopath" -map ${mapv} -map ${mapa} -map ${maps} -preset ${preset_decode_speed} -vf "${video_format}"  -vcodec libx264 -g 60 -b:v 6000k -c:a aac -b:a 128k -strict -2 -f flv -y ${rtmp}
       fi
     fi
 
@@ -327,7 +331,7 @@ stream_play_main(){
     sys_date2=$(date -d "$date2" +%s)
     time_seconds=`expr $sys_date2 - $sys_date1`
 
-    if [ "${mode}" != "test" ] && [ ${time_seconds} -ge 700 ]; then
+    if [ "${mode}" != "test" ] && [ ${time_seconds} -ge 700 ] && [ "${file_count}" != "" ]; then
         echo "$videopath" >> "${playlist_done}"
     fi
    
@@ -335,6 +339,7 @@ stream_play_main(){
 
 
 get_playing_video(){
+    mode=$1
     for line in $(cat ${playlist})
     do    
         line=`echo ${line} | tr -d '\r'`
@@ -377,10 +382,11 @@ get_playing_video(){
 
 
 get_play_next(){
+    mode=$1
     if [ "$(get_rest)" = "rest" ]; then
-        next_video_path=$(get_rest_video)
+        next_video_path=$(get_rest_video ${mode})
     else
-        next_video_path=$(get_playing_video)
+        next_video_path=$(get_playing_video ${mode})
     fi    
     echo ${next_video_path}
 }
@@ -399,7 +405,7 @@ stream_start(){
 
     while true
     do
-        next=$(get_play_next)
+        next=$(get_play_next ${mode})
         stream_play_main "${next}" "${play_mode}" "${mode}"  
         sleep 1
     done

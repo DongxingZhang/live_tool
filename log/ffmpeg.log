@@ -1,0 +1,47 @@
+推流地址和推流码:rtmp://live-push.bilivideo.com/live-bvc/?streamname=live_97540856_1852534&key=a042d1eb6f69ca88b16f4fb9bf9a5435&schedule=rtmp&pflag=1
+水印文件:
+播放列表:/mnt/tool/live-tool/list/playlist.m3u
+已播放列表:/mnt/tool/live-tool/list/playlist_done.m3u
+[0;33m FFmpeg无人值守直播工具(version 1.1) [0m
+[0;32m 1.安装FFmpeg (机器要安装FFmpeg才能正常推流) [0m
+[0;32m 2.开始无人值守循环推流 [0m
+[0;32m 3.开始播放的单个目录 [0m
+[0;32m 4.增加视频目录 [0m
+[0;32m 5.停止推流 [0m
+2
+seq
+bg
+[0;32m 推流地址输入正确,程序将进行下一步操作. [0m
+ffmpeg: no process found
+文件大小:835395860
+推送/mnt/smb/电视剧/今生无悔国语720P/07.ts
+[mpegts @ 0x5608a7adad40] [warning] start time for stream 0 is not set in estimate_timings_from_pts
+[warning] Unsupported codec with id 98313 for input stream 0
+[mpegts @ 0x56227b596d40] [warning] start time for stream 0 is not set in estimate_timings_from_pts
+[warning] Unsupported codec with id 98313 for input stream 0
+[mpegts @ 0x55d562890d40] [warning] start time for stream 0 is not set in estimate_timings_from_pts
+[warning] Unsupported codec with id 98313 for input stream 0
+[mpegts @ 0x55768b884d40] [warning] start time for stream 0 is not set in estimate_timings_from_pts
+[warning] Unsupported codec with id 98313 for input stream 0
+[mpegts @ 0x55f923dd8d40] [warning] start time for stream 0 is not set in estimate_timings_from_pts
+[warning] Unsupported codec with id 98313 for input stream 0
+[mpegts @ 0x55f456108d40] [warning] start time for stream 0 is not set in estimate_timings_from_pts
+[warning] Unsupported codec with id 98313 for input stream 0
+0:1, 0:2,
+北京 晴 37℃;澳门 雷阵雨 31℃;长春 雷阵雨 28℃;长沙 晴 36℃;成都 晴转多云 35℃;福州 晴转多云 39℃;广州 多云转晴 34℃;贵阳 多云转阴 28℃;哈尔滨 雷阵雨转多云 28℃;海口 多云 36℃;杭州 雷阵雨转晴 35℃;合肥 多云转晴 35℃;呼和浩特 多云转晴 30℃;济南 晴转多云 39℃;昆明 小雨转阵雨 28℃;兰州 晴 37℃;拉萨 阵雨 23℃;南昌 多云 36℃;南京 阴 32℃;南宁 多云 35℃;沈阳 中雨转中到大雨 27℃;石家庄 多云转晴 37℃;台北 晴 33℃;太原 晴 33℃;天津 多云转晴 35℃;武汉 小雨转中雨 33℃;乌鲁木齐 阵雨转多云 28℃;西安 多云转晴 34℃;香港 雷阵雨 33℃;西宁 多云转晴 28℃;上海 小雨转中雨 31℃;银川 晴 34℃;
+video_type=TV0
+newfontsize=46
+7
+40
+delogo=x=965:y=40:w=75:h=60:show=0,eq=contrast=1:brightness=0.2,curves=preset=lighter,drawtext=fontsize=37:fontcolor=#FDE6E0:text='%{pts\:gmtime\:0\:%H\\\:%M\\\:%S} ''00\:42\:55':fontfile=/mnt/tool/live-tool/fonts/STFANGSO.TTF:expansion=normal:x=w-line_h\*5-15:y=h-line_h\*6:shadowx=2:shadowy=2:box=1:boxcolor=black@0.3:boxborderw=3,drawtext=fontsize=46:fontcolor=#FDE6E0:text='北京 晴 37℃;澳门 雷阵雨 31℃;长春 雷阵雨 28℃;长沙 晴 36℃;成都 晴转多云 35℃;福州 晴转多云 39℃;广州 多云转晴 34℃;贵阳 多云转阴 28℃;哈尔滨 雷阵雨转多云 28℃;海口 多云 36℃;杭州 雷阵雨转晴 35℃;合肥 多云转晴 35℃;呼和浩特 多云转晴 30℃;济南 晴转多云 39℃;昆明 小雨转阵雨 28℃;兰州 晴 37℃;拉萨 阵雨 23℃;南昌 多云 36℃;南京 阴 32℃;南宁 多云 35℃;沈阳 中雨转中到大雨 27℃;石家庄 多云转晴 37℃;台北 晴 33℃;太原 晴 33℃;天津 多云转晴 35℃;武汉 小雨转中雨 33℃;乌鲁木齐 阵雨转多云 28℃;西安 多云转晴 34℃;香港 雷阵雨 33℃;西宁 多云转晴 28℃;上海 小雨转中雨 31℃;银川 晴 34℃;':fontfile=/mnt/tool/live-tool/fonts/STFANGSO.TTF:expansion=normal:x=w-mod(max(t-1\,0)*(w+tw)/215\,(w+tw)):y=h-line_h-5:shadowx=2:shadowy=2:box=1:boxcolor=black@0.3:boxborderw=3,drawtext=fontsize=46:fontcolor=#FDE6E0:text='第 ''７ ''集 '' ''共 ''40 ''集':fontfile=/mnt/tool/live-tool/fonts/STFANGSO.TTF:expansion=normal:x=line_h\*2:y=h/2-line_h\*3:shadowx=2:shadowy=2:box=1:boxcolor=black@0.3:boxborderw=3
+ffmpeg -loglevel repeat+level+warning -re -i /mnt/smb/电视剧/今生无悔国语720P/07.ts -map 0:1 -map 0:2 -preset ultrafast -vf delogo=x=965:y=40:w=75:h=60:show=0,eq=contrast=1:brightness=0.2,curves=preset=lighter,drawtext=fontsize=37:fontcolor=#FDE6E0:text='%{pts\:gmtime\:0\:%H\\\:%M\\\:%S}
+''00\:42\:55':fontfile=/mnt/tool/live-tool/fonts/STFANGSO.TTF:expansion=normal:x=w-line_h\*5-15:y=h-line_h\*6:shadowx=2:shadowy=2:box=1:boxcolor=black@0.3:boxborderw=3,drawtext=fontsize=46:fontcolor=#FDE6E0:text='北京 晴 37℃;澳门 雷阵雨 31℃;长春 雷阵雨 28℃;长沙 晴 36℃;成都 晴转多云 35℃;福州 晴转多云 39℃;广州 多云转晴 34℃;贵阳 多云转阴 28℃;哈尔滨 雷阵雨转多云 28℃;海口 多云 36℃;杭州 雷阵雨转晴 35℃;合肥 多云转晴 35℃;呼和浩特 多云转晴 30℃;济南 晴转多云 39℃;昆明 小雨转阵雨 28℃;兰州 晴 37℃;拉萨 阵雨 23℃;南昌 多云 36℃;南京 阴 32℃;南宁 多云 35℃;沈阳 中雨转中到大雨 27℃;石家庄 多云转晴 37℃;台北 晴 33℃;太原 晴 33℃;天津 多云转晴 35℃;武汉 小雨转中雨 33℃;乌鲁木齐 阵雨转多云 28℃;西安 多云转晴 34℃;香港 雷阵雨 33℃;西宁 多云转晴 28℃;上海 小雨转中雨 31℃;银川 晴 34℃;':fontfile=/mnt/tool/live-tool/fonts/STFANGSO.TTF:expansion=normal:x=w-mod(max(t-1\,0)*(w+tw)/215\,(w+tw)):y=h-line_h-5:shadowx=2:shadowy=2:box=1:boxcolor=black@0.3:boxborderw=3,drawtext=fontsize=46:fontcolor=#FDE6E0:text='第
+''７
+''集
+''
+''共
+''40
+''集':fontfile=/mnt/tool/live-tool/fonts/STFANGSO.TTF:expansion=normal:x=line_h\*2:y=h/2-line_h\*3:shadowx=2:shadowy=2:box=1:boxcolor=black@0.3:boxborderw=3 -vcodec libx264 -g 60 -b:v 6000k -c:a aac -b:a 128k -strict -2 -f flv rtmp://live-push.bilivideo.com/live-bvc/?streamname=live_97540856_1852534&key=a042d1eb6f69ca88b16f4fb9bf9a5435&schedule=rtmp&pflag=1
+[mpegts @ 0x556e30d80700] [warning] start time for stream 0 is not set in estimate_timings_from_pts
+[flv @ 0x55b202522b40] [warning] Failed to update header with correct duration.
+[flv @ 0x55b202522b40] [warning] Failed to update header with correct filesize.
