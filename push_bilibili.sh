@@ -283,7 +283,7 @@ stream_play_main(){
     newfontsize=$(get_fontsize ${videopath})
     echo newfontsize=${newfontsize}
     #计算时间字体大小
-    halfnewfontsize=$(expr ${newfontsize} \* 82 / 100)
+    halfnewfontsize=$(expr ${newfontsize} \* 75 / 100)
 
     #显示时长
     duration=$(get_duration2 "${videopath}")
