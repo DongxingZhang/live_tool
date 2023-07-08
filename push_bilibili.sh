@@ -36,8 +36,8 @@ enter=`echo -e "\n''"`
 split=`echo -e "\t''"`
 
 #休息时间
-rest_start=23
-rest_end=6
+rest_start=21
+rest_end=7
 
 get_rest(){
     hours=$(TZ=Asia/Shanghai date +%H)
@@ -67,6 +67,11 @@ get_rest_videos_real(){
     do
         line=`echo ${line} | tr -d '\r'`
         line=`echo ${line} | tr -d '\n'`
+        # 判断是否要跳过
+        flag=${line:0:1}
+        if [ "${flag}" = "#" ];then
+            continue
+        fi
 
         arr=(${line//|/ }) 
         video_type=${arr[0]} 
@@ -76,12 +81,15 @@ get_rest_videos_real(){
         param=${arr[4]}
         videopath=${arr[5]}
 
+        cur_file=1
+        file_count=`ls -l ${videopath}  |grep "^-"|wc -l`
         for subdirfile in ${videopath}/*; do
             filename=`echo ${subdirfile} | awk -F "/" '{print $NF}'`
-            filenamelist[$videono]=${videopath}/${filename}
-            videono=$(expr $videono + 1)   
+            filenamelist[$videono]="${video_type}|${lighter}|${audio}|${subtitle}|${param}|${videopath}/${filename}|${cur_file}|${file_count}|rest"
+            videono=$(expr $videono + 1)
+            cur_file=$(expr $cur_file + 1)
         done
-    done	
+    done
     video_lengh=${#filenamelist[@]}
     touch ${videonofile}
     next_video=`cat ${videonofile}`
@@ -96,7 +104,7 @@ get_rest_videos_real(){
        next_next_video=$(expr $next_video + 1)
        echo "${next_next_video}" > ${videonofile}
     fi
-    echo "${video_type}|${lighter}|${audio}|${subtitle}|${param}|${filenamelist[$next_video]}||"
+    echo "${filenamelist[$next_video]}"
 }
 
 get_rest_video(){
@@ -181,8 +189,16 @@ stream_play_main(){
     videopath=${arr[5]}
     cur_file=${arr[6]}
     file_count=${arr[7]}
+    play_time=${arr[8]}
     play_mode=$2
     mode=$3
+
+    echo video_type=${video_type}
+    echo lighter=${lighter}
+    echo audio=${audio}
+    echo subtitle=${subtitle}
+    echo param=${param}
+    echo videopath=${videopath}
 
     if [[ -d "${videopath}" ]];then
         return 0
@@ -298,11 +314,14 @@ stream_play_main(){
     echo ${cur_file}
     echo ${file_count}
 
-    if [ "${file_count}" = "" ]; then
-        rest_start2=$(digit_half2full ${rest_start})
-        res_end2=$(expr $rest_end + 1)
-        res_end2=$(digit_half2full ${res_end2})
-        content2="${rest_start2}${enter}点${enter}到${enter}${res_end2}${enter}点${enter}休${enter}息${enter}"
+    if [ "${play_time}" = "rest" ]; then
+        cur_file2=$(digit_half2full ${cur_file})
+        file_count2=$(digit_half2full ${file_count})
+        content2="第${enter}${cur_file2}${enter}集${enter}${enter}共${enter}${file_count2}${enter}集"
+        #rest_start2=$(digit_half2full ${rest_start})
+        #res_end2=$(expr $rest_end + 1)
+        #res_end2=$(digit_half2full ${res_end2})
+        #content2="${rest_start2}${enter}点${enter}到${enter}${res_end2}${enter}点${enter}休${enter}息${enter}第${enter}${cur_file2}${enter}集"
     else
         cur_file2=$(digit_half2full ${cur_file})
         file_count2=$(digit_half2full ${file_count})
@@ -310,12 +329,12 @@ stream_play_main(){
     fi
     drawtext3="drawtext=fontsize=${newfontsize}:fontcolor=${fontcolor}:text='${content2}':fontfile=${fontdir}:expansion=normal:x=line_h\*2:y=h/2-line_h\*3:shadowx=2:shadowy=2:${fontbg}"
         
-    watermark="[1:v]scale=-1:${newfontsize}\*2[wm];[bg][wm]overlay=30:overlay_h/3[bg1]"
+    watermark="[1:v]scale=-1:${newfontsize}\*3/2[wm];[bg][wm]overlay=30:overlay_h/3[bg1]"
     video_format="${video_format},${drawtext1},${drawtext2},${drawtext3}[bg];${mapa}volume=1.0[bga];${watermark};"
 
     echo ${video_format}
 
-    date1=$(date +"%Y-%m-%d %H:%M:%S")     
+    date1=$(TZ=Asia/Shanghai date +"%Y-%m-%d %H:%M:%S")
 
     if [ "${maps}" = "" ]; then
       echo ffmpeg -loglevel "${logging}"  -re -i "$videopath" -i "${logo}" -preset ${preset_decode_speed} -filter_complex "${video_format}" -map "[bg1]" -map "[bga]" -vcodec libx264 -g 60 -b:v 6000k -c:a aac -b:a 128k -strict -2 -f flv ${rtmp}
@@ -330,16 +349,22 @@ stream_play_main(){
       fi
     fi
 
-    date2=$(date +"%Y-%m-%d %H:%M:%S")
+    date2=$(TZ=Asia/Shanghai date +"%Y-%m-%d %H:%M:%S")
 
     sys_date1=$(date -d "$date1" +%s)
     sys_date2=$(date -d "$date2" +%s)
     time_seconds=`expr $sys_date2 - $sys_date1`
 
+    if [ "${mode}" != "test" ] && [ ${time_seconds} -lt 700 ]; then
+        echo "$(TZ=Asia/Shanghai date +"%Y-%m-%d %H:%M:%S") ffmpeg 命令失败！！需要调试" >> "${playlist_done}"
+        exit 1
+    fi
+
+
     if [ "${mode}" != "test" ] && [ ${time_seconds} -ge 700 ] && [ "${file_count}" != "" ]; then
         echo "$videopath" >> "${playlist_done}"
     fi
-   
+
 }
 
 
@@ -372,15 +397,15 @@ get_playing_video(){
                     continue
                 fi
                 found=1
-      	        echo "${video_type}|${lighter}|${audio}|${subtitle}|${param}|${subdirfile}|${cur_file}|${file_count}"
-	            break
+                echo "${video_type}|${lighter}|${audio}|${subtitle}|${param}|${subdirfile}|${cur_file}|${file_count}|playing"
+                break
             done
             if [[ "${found}" = "1" ]];then
                 break
-	        fi
+            fi
         elif [[ -f "${videopath}" ]] ; then
-            echo "${video_type}|${lighter}|${audio}|${subtitle}|${param}|${videopath}|1|1"
-	        break
+            echo "${video_type}|${lighter}|${audio}|${subtitle}|${param}|${videopath}|1|1|playing"
+            break
         fi
     done
 }

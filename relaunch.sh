@@ -10,7 +10,9 @@ fi
 if [ "$2" = "bg" ]; then
   echo "background pushing"
   nohup ./push_bilibili.sh 2 $1 $2 >./log/ffmpeg.log 2>&1 &
-  tail ./log/ffmpeg.log
+  sleep 2
+  ps -elf | grep ffmpeg 
+  ps -elf | grep push_bilibili
 elif [ "$2" = "fg" ]; then
   echo "foreground pushing"
   ./push_bilibili.sh 2 $1 $2
