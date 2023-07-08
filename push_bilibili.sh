@@ -21,6 +21,9 @@ playlist_done="${curdir}/list/playlist_done.m3u"
 restlist="${curdir}/list/rest.m3u"
 waitingvc="${curdir}/count/videono"
 
+news=${curdir}/log/news.txt
+logo=${curdir}/logo/logo.png
+
 fontdir=${curdir}/fonts/STFANGSO.TTF
 fontsize=70
 fontcolor=#FDE6E0
@@ -220,25 +223,25 @@ stream_play_main(){
     
     maps=
     if [ "$sub_track" != "" ];then
-        maps="0:${sub_track}"
+        maps="[0:s:0]"
     fi
 
-    mapv="0:${video_track}"
-    mapa="0:${audio_track}"
+    mapv="[0:v:0]"
+    mapa="[0:a:0]"
 
     if [ "${audio}" != "F" ]; then
-        mapa="0:${audio}"
+        mapa="[0:a:${audio}]"
     fi
     
     if [ "${subtitle}" != "F" ]; then
-        maps="0:${subtitle}"
+        maps="[0:a:${subtitle}]"
     fi
 
     echo ${mapv}, ${mapa}, ${maps}
 
     #读取天气预报
-    cat <( curl -s http://www.nmc.cn/publish/forecast/  ) | tr -s '\n' ' ' |  sed  's/<div class="col-xs-4">/\n/g' | sed -E 's/<[^>]+>//g' | awk -F ' ' 'NF==5{print $1,$2,$3}' | head -n 32 | tr -s '\n' ';' | sed 's/徐家汇/上海/g' | sed 's/长沙市/长沙/g' >  ${curdir}/log/news.txt
-    strline=$(cat ${curdir}/log/news.txt)
+    cat <( curl -s http://www.nmc.cn/publish/forecast/  ) | tr -s '\n' ' ' |  sed  's/<div class="col-xs-4">/\n/g' | sed -E 's/<[^>]+>//g' | awk -F ' ' 'NF==5{print $1,$2,$3}' | head -n 32 | tr -s '\n' ';' | sed 's/徐家汇/上海/g' | sed 's/长沙市/长沙/g' >  ${news}
+    strline=$(cat ${news})
     echo $strline   
 
     echo video_type=${video_type}   
@@ -270,9 +273,9 @@ stream_play_main(){
     fi
 
     if [ "${lighter}" != "F" ];then
-        video_format="${delogo}eq=contrast=1:brightness=0.2,curves=preset=lighter"
+        video_format="${mapv}${delogo}eq=contrast=1:brightness=0.2,curves=preset=lighter"
     else
-        video_format="${delogo}eq=contrast=1"
+        video_format="${mapv}${delogo}eq=contrast=1"
     fi
 
     #计算真正字体大小
@@ -306,22 +309,23 @@ stream_play_main(){
     fi
     drawtext3="drawtext=fontsize=${newfontsize}:fontcolor=${fontcolor}:text='${content2}':fontfile=${fontdir}:expansion=normal:x=line_h\*2:y=h/2-line_h\*3:shadowx=2:shadowy=2:${fontbg}"    
         
-    #watermark="movie=${curdir}/logo/logo.png[watermark];[in][watermark]overlay=main_w-overlay_w\*3-10:overlay_h+10[out]"
-    video_format="${video_format},${drawtext1},${drawtext2},${drawtext3}"
+    watermark="[1:v]scale=${newfontsize}\*2:-1[wm];[bg][wm]overlay=main_w-overlay_w\*3-20:overlay_h/2[bg1]"
+    video_format="${video_format},${drawtext1},${drawtext2},${drawtext3}[bg];${mapa}volume=1.0[bga];${watermark};"
 
     echo ${video_format}
 
     date1=$(date +"%Y-%m-%d %H:%M:%S")     
 
     if [ "${maps}" = "" ]; then
-      echo ffmpeg -loglevel "${logging}"  -re -i "$videopath"  -map ${mapv} -map ${mapa} -preset ${preset_decode_speed} -vf "${video_format}"  -vcodec libx264 -g 60 -b:v 6000k -c:a aac -b:a 128k -strict -2 -f flv ${rtmp}
+      echo ffmpeg -loglevel "${logging}"  -re -i "$videopath" -i "${logo}" -preset ${preset_decode_speed} -filter_complex "${video_format}" -map "[bg1]" -map "[bga]" -vcodec libx264 -g 60 -b:v 6000k -c:a aac -b:a 128k -strict -2 -f flv ${rtmp}
       if [ "${mode}" != "test" ];then
-          ffmpeg -loglevel "${logging}" -re -i "$videopath" -map ${mapv} -map ${mapa} -preset ${preset_decode_speed} -vf "${video_format}"  -vcodec libx264 -g 60 -b:v 6000k -c:a aac -b:a 128k -strict -2 -f flv -y ${rtmp}
+          ffmpeg -loglevel "${logging}" -re -i "$videopath" -i "${logo}"  -preset ${preset_decode_speed} -filter_complex "${video_format}" -map "[bg1]" -map "[bga]" -vcodec libx264 -g 60 -b:v 6000k -c:a aac -b:a 128k -strict -2 -f flv -y ${rtmp}
       fi
     else
-      echo ffmpeg -loglevel "${logging}" -re -i "$videopath" -map ${mapv} -map ${mapa} -map ${maps} -preset ${preset_decode_speed} -vf "${video_format}"  -vcodec libx264 -g 60 -b:v 6000k -c:a aac -b:a 128k -strict -2 -f flv ${rtmp}
+      video_format="${video_format};${maps}overlay[bgs]"
+      echo ffmpeg -loglevel "${logging}" -re -i "$videopath" -i "${logo}"  -preset ${preset_decode_speed} -filter_complex "${video_format}" -map "[bg1]" -map "[bga]" -map "[bgs]" -vcodec libx264 -g 60 -b:v 6000k -c:a aac -b:a 128k -strict -2 -f flv ${rtmp}
       if [ "${mode}" != "test" ];then
-          ffmpeg -loglevel "${logging}" -re -i "$videopath" -map ${mapv} -map ${mapa} -map ${maps} -preset ${preset_decode_speed} -vf "${video_format}"  -vcodec libx264 -g 60 -b:v 6000k -c:a aac -b:a 128k -strict -2 -f flv -y ${rtmp}
+          ffmpeg -loglevel "${logging}" -re -i "$videopath" -i "${logo}"  -preset ${preset_decode_speed} -filter_complex "${video_format}" -map "[bg1]" -map "[bga]" -map "[bgs]" -vcodec libx264 -g 60 -b:v 6000k -c:a aac -b:a 128k -strict -2 -f flv -y ${rtmp}
       fi
     fi
 
