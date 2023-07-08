@@ -22,7 +22,7 @@ restlist="${curdir}/list/rest.m3u"
 waitingvc="${curdir}/count/videono"
 
 news=${curdir}/log/news.txt
-logo=${curdir}/logo/logo.png
+logodir=${curdir}/logo
 
 fontdir=${curdir}/fonts/STFANGSO.TTF
 fontsize=70
@@ -261,6 +261,15 @@ stream_play_main(){
 
     echo $strline   
 
+    #logo
+    if [ "${param}" != "F" ]; then
+        #怀旧logo
+        logo=${logodir}/logo2.png
+    else
+        #武侠logo
+        logo=${logodir}/logo.png
+    fi
+
     echo video_type=${video_type}   
     #去掉logo
     if [ "${video_type}" = "YOU" ];then
@@ -304,7 +313,7 @@ stream_play_main(){
     #显示时长
     duration=$(get_duration2 "${videopath}")
     content="%{pts\:gmtime\:0\:%H\\\\\:%M\\\\\:%S}${enter}${duration}"
-    drawtext1="drawtext=fontsize=${halfnewfontsize}:fontcolor=${fontcolor}:text='${content}':fontfile=${fontdir}:expansion=normal:x=w-line_h\*5-15:y=line_h\*2:shadowx=2:shadowy=2:${fontbg}"
+    drawtext1="drawtext=fontsize=${halfnewfontsize}:fontcolor=${fontcolor}:text='${content}':fontfile=${fontdir}:expansion=normal:x=w-line_h\*5-15:y=line_h\*3/2:shadowx=2:shadowy=2:${fontbg}"
     
     #天气预报
     #从左往右drawtext2="drawtext=fontsize=${newfontsize}:fontcolor=${fontcolor}:text='${news}':fontfile=${fontdir}:expansion=normal:x=(mod(5*n\,w+tw)-tw):y=h-line_h-10:shadowx=2:shadowy=2:${fontbg}"
@@ -314,7 +323,11 @@ stream_play_main(){
     echo ${cur_file}
     echo ${file_count}
 
-    if [ "${play_time}" = "rest" ]; then
+    if [ "${play_time}" = "playing" ]; then
+        cur_file2=$(digit_half2full ${cur_file})
+        file_count2=$(digit_half2full ${file_count})
+        content2="第${enter}${cur_file2}${enter}集${enter}${enter}共${enter}${file_count2}${enter}集"
+    else
         cur_file2=$(digit_half2full ${cur_file})
         file_count2=$(digit_half2full ${file_count})
         content2="第${enter}${cur_file2}${enter}集${enter}${enter}共${enter}${file_count2}${enter}集"
@@ -322,10 +335,6 @@ stream_play_main(){
         #res_end2=$(expr $rest_end + 1)
         #res_end2=$(digit_half2full ${res_end2})
         #content2="${rest_start2}${enter}点${enter}到${enter}${res_end2}${enter}点${enter}休${enter}息${enter}第${enter}${cur_file2}${enter}集"
-    else
-        cur_file2=$(digit_half2full ${cur_file})
-        file_count2=$(digit_half2full ${file_count})
-        content2="第${enter}${cur_file2}${enter}集${enter}${enter}共${enter}${file_count2}${enter}集"
     fi
     drawtext3="drawtext=fontsize=${newfontsize}:fontcolor=${fontcolor}:text='${content2}':fontfile=${fontdir}:expansion=normal:x=line_h\*2:y=h/2-line_h\*3:shadowx=2:shadowy=2:${fontbg}"
         
@@ -360,8 +369,7 @@ stream_play_main(){
         exit 1
     fi
 
-
-    if [ "${mode}" != "test" ] && [ ${time_seconds} -ge 700 ] && [ "${file_count}" != "" ]; then
+    if [ "${mode}" != "test" ] && [ ${time_seconds} -ge 700 ] && [ "${play_time}" = "playing" ]; then
         echo "$videopath" >> "${playlist_done}"
     fi
 
