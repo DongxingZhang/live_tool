@@ -1,24 +1,27 @@
-echo $1
-echo $2
-if [ "$2" != "test" ];then    
+mode=$1
+
+if [ "${mode}" != "test" ];then    
     killall ffmpeg
-    killall push_bilibili.sh    
+    killall push_bilibili.sh
+    sleep 4    
     ps -elf | grep ffmpeg 
     ps -elf | grep push_bilibili
 fi
 
-if [ "$2" = "bg" ]; then
+read -p "请输入任意继续:" any
+
+if [ "${mode}" = "bg" ]; then
   echo "background pushing"
-  nohup ./push_bilibili.sh 2 $1 $2 >./log/ffmpeg.log 2>&1 &
+  nohup ./push_bilibili.sh 2 any ${mode} >./log/ffmpeg.log 2>&1 &
   sleep 2
-  ps -elf | grep ffmpeg 
+  ps -elf | grep ffmpeg
   ps -elf | grep push_bilibili
-elif [ "$2" = "fg" ]; then
+elif [ "${mode}" = "fg" ]; then
   echo "foreground pushing"
-  ./push_bilibili.sh 2 $1 $2
-elif [ "$2" = "test" ]; then
+  ./push_bilibili.sh 2 any ${mode}
+elif [ "${mode}" = "test" ]; then
   echo "test pushing"
-  ./push_bilibili.sh 2 $1 $2
+  ./push_bilibili.sh 2 any ${mode}
 else
   echo "exit"
 fi

@@ -313,7 +313,7 @@ stream_play_main(){
     #显示时长
     duration=$(get_duration2 "${videopath}")
     content="%{pts\:gmtime\:0\:%H\\\\\:%M\\\\\:%S}${enter}${duration}"
-    drawtext1="drawtext=fontsize=${halfnewfontsize}:fontcolor=${fontcolor}:text='${content}':fontfile=${fontdir}:expansion=normal:x=w-line_h\*5-${newfontsize}\*3/2:y=line_h\*3:shadowx=2:shadowy=2:${fontbg}"
+    drawtext1="drawtext=fontsize=${halfnewfontsize}:fontcolor=${fontcolor}:text='${content}':fontfile=${fontdir}:expansion=normal:x=w-line_h\*5-${newfontsize}\*3/2:y=line_h\*3/2:shadowx=2:shadowy=2:${fontbg}"
     
     #天气预报
     #从左往右drawtext2="drawtext=fontsize=${newfontsize}:fontcolor=${fontcolor}:text='${news}':fontfile=${fontdir}:expansion=normal:x=(mod(5*n\,w+tw)-tw):y=h-line_h-10:shadowx=2:shadowy=2:${fontbg}"
@@ -338,7 +338,7 @@ stream_play_main(){
     fi
     drawtext3="drawtext=fontsize=${newfontsize}:fontcolor=${fontcolor}:text='${content2}':fontfile=${fontdir}:expansion=normal:x=line_h\*2:y=h/2-line_h\*3:shadowx=2:shadowy=2:${fontbg}"
         
-    watermark="[1:v]scale=-1:${newfontsize}\*3/2[wm];[bg][wm]overlay=overlay_w/2:overlay_h[bg1]"
+    watermark="[1:v]scale=-1:${newfontsize}\*3/2[wm];[bg][wm]overlay=overlay_w/2:overlay_h/2[bg1]"
     video_format="${video_format},${drawtext1},${drawtext2},${drawtext3}[bg];${mapa}volume=1.0[bga];${watermark};"
 
     echo ${video_format}
