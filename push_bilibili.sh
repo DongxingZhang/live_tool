@@ -19,6 +19,7 @@ playlist="${curdir}/list/playlist.m3u"
 playlist_done="${curdir}/list/playlist_done.m3u"
 
 restlist="${curdir}/list/rest.m3u"
+resthistory="${curdir}/log/resthisotry.log"
 waitingvc="${curdir}/count/videono"
 
 news=${curdir}/log/news.txt
@@ -104,6 +105,7 @@ get_rest_videos_real(){
        next_next_video=$(expr $next_video + 1)
        echo "${next_next_video}" > ${videonofile}
     fi
+    echo "在$(TZ=Asia/Shanghai date +"%Y-%m-%d %H:%M:%S")开始播放文件${filenamelist[$next_video]}"  >> ${resthistory}
     echo "${filenamelist[$next_video]}"
 }
 
