@@ -101,17 +101,12 @@ get_rest_videos_real(){
     if [ ${next_video} -ge ${video_lengh} ]; then
         next_video=0
     fi
-    if [ "${mode}" != "test" ];then 
-       next_next_video=$(expr $next_video + 1)
-       echo "${next_next_video}" > ${videonofile}
-    fi
     echo "在$(TZ=Asia/Shanghai date +"%Y-%m-%d %H:%M:%S")开始播放文件${filenamelist[$next_video]}"  >> ${resthistory}
     echo "${filenamelist[$next_video]}"
 }
 
 get_rest_video(){
-    mode=$1
-    get_rest_videos_real ${restlist} ${waitingvc} ${mode}
+    get_rest_videos_real $1 $2 $3
 }
 
 
@@ -194,6 +189,7 @@ stream_play_main(){
     play_time=${arr[8]}
     play_mode=$2
     mode=$3
+    waitingvc=$4
 
     echo video_type=${video_type}
     echo lighter=${lighter}
@@ -284,6 +280,10 @@ stream_play_main(){
         delogo="delogo=x=525:y=30:w=85:h=60:show=0,"
     elif [ "${video_type}" = "TV3" ];then
         delogo="delogo=x=795:y=30:w=75:h=60:show=0,"
+    elif [ "${video_type}" = "TV4" ];then
+        delogo="delogo=x=1100:y=30:w=120:h=55:show=0,"
+    elif [ "${video_type}" = "TV5" ];then
+        delogo="delogo=x=582:y=26:w=74:h=52:show=0,"
     elif [ "${video_type}" = "CCV" ];then
         delogo="delogo=x=80:y=50:w=155:h=120:show=0,"
     elif [ "${video_type}" = "CC2" ];then
@@ -371,8 +371,18 @@ stream_play_main(){
         exit 1
     fi
 
-    if [ "${mode}" != "test" ] && [ ${time_seconds} -ge 700 ] && [ "${play_time}" = "playing" ]; then
-        echo "$videopath" >> "${playlist_done}"
+    if [ "${mode}" != "test" ] && [ ${time_seconds} -ge 120 ]; then
+        if [ "${play_time}" = "playing" ]; then
+            echo "$videopath" >> "${playlist_done}"
+        else
+            touch ${waitingvc}
+            next_video=`cat ${waitingvc}`
+            if [ "${next_video}" =  "" ]; then
+                next_video=0
+            fi
+            next_next_video=$(expr $next_video + 1)
+            echo "${next_next_video}" > ${waitingvc}
+        fi
     fi
 
 }
@@ -422,11 +432,10 @@ get_playing_video(){
 
 
 get_play_next(){
-    mode=$1
     if [ "$(get_rest)" = "rest" ]; then
-        next_video_path=$(get_rest_video ${mode})
+        next_video_path=$(get_rest_video $1 $2 $3)
     else
-        next_video_path=$(get_playing_video ${mode})
+        next_video_path=$(get_playing_video $3)
     fi    
     echo ${next_video_path}
 }
@@ -445,8 +454,8 @@ stream_start(){
 
     while true
     do
-        next=$(get_play_next ${mode})
-        stream_play_main "${next}" "${play_mode}" "${mode}"  
+        next=$(get_play_next ${restlist} ${waitingvc} ${mode})
+        stream_play_main "${next}" "${play_mode}" "${mode}" ${waitingvc} 
         sleep 1
     done
 }
