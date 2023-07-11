@@ -25,6 +25,8 @@ waitingvc="${curdir}/count/videono"
 news=${curdir}/log/news.txt
 logodir=${curdir}/logo
 
+subfile=${curdir}/sub/sub.srt
+
 fontdir=${curdir}/fonts/STFANGSO.TTF
 fontsize=70
 fontcolor=#FDE6E0
@@ -37,8 +39,17 @@ enter=`echo -e "\n''"`
 split=`echo -e "\t''"`
 
 #休息时间
-rest_start=21
+rest_start=1
 rest_end=7
+
+
+if [ ! -d ${curdir}/log ];then
+    mkdir ${curdir}/log
+fi
+
+if [ ! -d ${curdir}/sub ];then
+    mkdir ${curdir}/sub
+fi
 
 get_rest(){
     hours=$(TZ=Asia/Shanghai date +%H)
@@ -81,15 +92,20 @@ get_rest_videos_real(){
         subtitle=${arr[3]}
         param=${arr[4]}
         videopath=${arr[5]}
-
-        cur_file=1
-        file_count=`ls -l ${videopath}  |grep "^-"|wc -l`
-        for subdirfile in ${videopath}/*; do
-            filename=`echo ${subdirfile} | awk -F "/" '{print $NF}'`
-            filenamelist[$videono]="${video_type}|${lighter}|${audio}|${subtitle}|${param}|${videopath}/${filename}|${cur_file}|${file_count}|rest"
-            videono=$(expr $videono + 1)
-            cur_file=$(expr $cur_file + 1)
-        done
+        
+        if [[ -d "${videopath}" ]];then
+            cur_file=1
+            file_count=`ls -l ${videopath}  |grep "^-"|wc -l`
+            for subdirfile in ${videopath}/*; do
+                filename=`echo ${subdirfile} | awk -F "/" '{print $NF}'`
+                filenamelist[$videono]="${video_type}|${lighter}|${audio}|${subtitle}|${param}|${videopath}/${filename}|${cur_file}|${file_count}|rest"
+                videono=$(expr $videono + 1)
+                cur_file=$(expr $cur_file + 1)
+            done
+        else
+          filenamelist[$videono]="${video_type}|${lighter}|${audio}|${subtitle}|${param}|${videopath}|1|1|rest"
+          videono=$(expr $videono + 1)
+        fi
     done
     video_lengh=${#filenamelist[@]}
     touch ${videonofile}
@@ -237,7 +253,7 @@ stream_play_main(){
     
     maps=
     if [ "$sub_track" != "" ];then
-        maps="[0:s:0]"
+        maps="0:s:0"
     fi
 
     mapv="[0:v:0]"
@@ -248,7 +264,7 @@ stream_play_main(){
     fi
     
     if [ "${subtitle}" != "F" ]; then
-        maps="[0:a:${subtitle}]"
+        maps="0:s:${subtitle}"
     fi
 
     echo ${mapv}, ${mapa}, ${maps}
@@ -300,6 +316,14 @@ stream_play_main(){
         delogo=""
     fi
 
+    if [ "${maps}" != "" ];then  
+        echo ffmpeg -i ${videopath} -map ${maps} -y ${subfile}      
+        ffmpeg -i ${videopath} -map ${maps} -y ${subfile}        
+        cat ${subfile} | sed -E 's/<[^>]+>//g' > ./sub/tmp
+        mv ./sub/tmp ${subfile}
+        mapv="${mapv}subtitles=filename=${subfile}:fontsdir=${curdir}/fonts:force_style='Fontname=华文仿宋,Fontsize=14,Alignment=0,MarginV=50'[v];[v]"
+    fi
+
     if [ "${lighter}" != "F" ];then
         video_format="${mapv}${delogo}eq=contrast=1:brightness=0.2,curves=preset=lighter"
     else
@@ -315,7 +339,7 @@ stream_play_main(){
     #显示时长
     duration=$(get_duration2 "${videopath}")
     content="%{pts\:gmtime\:0\:%H\\\\\:%M\\\\\:%S}${enter}${duration}"
-    drawtext1="drawtext=fontsize=${halfnewfontsize}:fontcolor=${fontcolor}:text='${content}':fontfile=${fontdir}:expansion=normal:x=w-line_h\*5-${newfontsize}\*3/2:y=line_h\*3/2:shadowx=2:shadowy=2:${fontbg}"
+    drawtext1="drawtext=fontsize=${halfnewfontsize}:fontcolor=${fontcolor}:text='${content}':fontfile=${fontdir}:expansion=normal:x=w-line_h\*8:y=line_h\*3:shadowx=2:shadowy=2:${fontbg}"
     
     #天气预报
     #从左往右drawtext2="drawtext=fontsize=${newfontsize}:fontcolor=${fontcolor}:text='${news}':fontfile=${fontdir}:expansion=normal:x=(mod(5*n\,w+tw)-tw):y=h-line_h-10:shadowx=2:shadowy=2:${fontbg}"
@@ -324,29 +348,38 @@ stream_play_main(){
     
     echo ${cur_file}
     echo ${file_count}
-
-    if [ "${play_time}" = "playing" ]; then
-        cur_file2=$(digit_half2full ${cur_file})
-        file_count2=$(digit_half2full ${file_count})
-        content2="第${enter}${cur_file2}${enter}集${enter}${enter}共${enter}${file_count2}${enter}集"
+    
+    if [ "${file_count}" = "1" ]; then
+        content2=
     else
         cur_file2=$(digit_half2full ${cur_file})
         file_count2=$(digit_half2full ${file_count})
-        content2="第${enter}${cur_file2}${enter}集${enter}${enter}共${enter}${file_count2}${enter}集"
-        #rest_start2=$(digit_half2full ${rest_start})
-        #res_end2=$(expr $rest_end + 1)
-        #res_end2=$(digit_half2full ${res_end2})
-        #content2="${rest_start2}${enter}点${enter}到${enter}${res_end2}${enter}点${enter}休${enter}息${enter}第${enter}${cur_file2}${enter}集"
+        content2="第${enter}${cur_file2}${enter}集${enter}${enter}共${enter}${file_count2}${enter}集"        
     fi
+
+#    if [ "${play_time}" = "playing" ]; then
+#        cur_file2=$(digit_half2full ${cur_file})
+#        file_count2=$(digit_half2full ${file_count})
+#        content2="第${enter}${cur_file2}${enter}集${enter}${enter}共${enter}${file_count2}${enter}集"
+#    else
+#        cur_file2=$(digit_half2full ${cur_file})
+#        file_count2=$(digit_half2full ${file_count})
+#        content2="第${enter}${cur_file2}${enter}集${enter}${enter}共${enter}${file_count2}${enter}集"
+#        #rest_start2=$(digit_half2full ${rest_start})
+#        #res_end2=$(expr $rest_end + 1)
+#        #res_end2=$(digit_half2full ${res_end2})
+#        #content2="${rest_start2}${enter}点${enter}到${enter}${res_end2}${enter}点${enter}休${enter}息${enter}第${enter}${cur_file2}${enter}集"
+#    fi
     drawtext3="drawtext=fontsize=${newfontsize}:fontcolor=${fontcolor}:text='${content2}':fontfile=${fontdir}:expansion=normal:x=line_h\*2:y=h/2-line_h\*3:shadowx=2:shadowy=2:${fontbg}"
         
-    watermark="[1:v]scale=-1:${newfontsize}\*3/2[wm];[bg][wm]overlay=overlay_w/2:overlay_h/2[bg1]"
+    watermark="[1:v]scale=-1:${newfontsize}\*2[wm];[bg][wm]overlay=overlay_w/3:overlay_h/2[bg1]"
     video_format="${video_format},${drawtext1},${drawtext2},${drawtext3}[bg];${mapa}volume=1.0[bga];${watermark};"
 
     echo ${video_format}
 
     date1=$(TZ=Asia/Shanghai date +"%Y-%m-%d %H:%M:%S")
 
+    echo ffmpeg -loglevel "${logging}" -re -i "$videopath" -i "${logo}"  -preset ${preset_decode_speed} -filter_complex "${video_format}" -map "[bg1]" -map "[bga]" -vcodec libx264 -g 60 -b:v 6000k -c:a aac -b:a 128k -strict -2 -f flv -y ${rtmp}
     if [ "${mode}" != "test" ];then
         ffmpeg -loglevel "${logging}" -re -i "$videopath" -i "${logo}"  -preset ${preset_decode_speed} -filter_complex "${video_format}" -map "[bg1]" -map "[bga]" -vcodec libx264 -g 60 -b:v 6000k -c:a aac -b:a 128k -strict -2 -f flv -y ${rtmp}
     fi
