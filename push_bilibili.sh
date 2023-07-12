@@ -467,6 +467,9 @@ get_playing_video(){
                 break
             fi
         elif [[ -f "${videopath}" ]] ; then
+            if [[ -e "${playlist_done}" ]] && cat "${playlist_done}" | grep "${videopath}" > /dev/null; then
+                continue
+            fi
             echo "${video_type}|${lighter}|${audio}|${subtitle}|${param}|${videopath}|1|1|playing"
             break
         fi
