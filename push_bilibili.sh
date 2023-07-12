@@ -271,9 +271,9 @@ stream_play_main(){
 
     #读取天气预报
     cat <( curl -s http://www.nmc.cn/publish/forecast/  ) | tr -s '\n' ' ' |  sed  's/<div class="col-xs-4">/\n/g' | sed -E 's/<[^>]+>//g' | awk -F ' ' 'NF==5{print $1,$2,$3}' | head -n 32 | tr -s '\n' ';' | sed 's/徐家汇/上海/g' | sed 's/长沙市/长沙/g' >  ${news}
-    strline=$(cat ${news})
+    #strline=$(cat ${news})
 
-    echo $strline   
+    #echo $strline   
 
     #logo
     if [ "${param}" != "F" ]; then
@@ -344,7 +344,7 @@ stream_play_main(){
     #天气预报
     #从左往右drawtext2="drawtext=fontsize=${newfontsize}:fontcolor=${fontcolor}:text='${news}':fontfile=${fontdir}:expansion=normal:x=(mod(5*n\,w+tw)-tw):y=h-line_h-10:shadowx=2:shadowy=2:${fontbg}"
     #从右到左
-    drawtext2="drawtext=fontsize=${newfontsize}:fontcolor=${fontcolor}:text='${strline}':fontfile=${fontdir}:expansion=normal:x=w-mod(max(t-1\,0)*(w+tw)/215\,(w+tw)):y=h-line_h-5:shadowx=2:shadowy=2:${fontbg}"
+    drawtext2="drawtext=fontsize=${halfnewfontsize}:fontcolor=${fontcolor}:textfile='${news}':fontfile=${fontdir}:expansion=normal:x=w-mod(max(t-1\,0)*(w+tw)/215\,(w+tw)):y=5:shadowx=2:shadowy=2:${fontbg}"
     
     echo ${cur_file}
     echo ${file_count}
@@ -390,10 +390,14 @@ stream_play_main(){
     sys_date2=$(date -d "$date2" +%s)
     time_seconds=`expr $sys_date2 - $sys_date1`
 
-    if [ "${mode}" != "test" ] && [ ${time_seconds} -lt 700 ]; then
+    if [ "${mode}" != "test" ] && [ ${time_seconds} -lt 120 ]; then
         echo "$(TZ=Asia/Shanghai date +"%Y-%m-%d %H:%M:%S") ffmpeg 命令失败！！需要调试" >> "${playlist_done}"
         exit 1
     fi
+
+    echo play_time=${play_time}
+    echo mode=${mode}
+    echo time_seconds=${time_seconds}
 
     if [ "${mode}" != "test" ] && [ ${time_seconds} -ge 120 ]; then
         if [ "${play_time}" = "playing" ]; then
