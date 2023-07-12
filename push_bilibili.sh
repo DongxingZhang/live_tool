@@ -178,6 +178,14 @@ get_fontsize(){
     echo $newfontsize
 }
 
+get_size(){
+    data=`ffprobe -hide_banner -show_format -show_streams "$1" 2>&1`
+    width=`echo $data |  awk -F 'width=' '{print $2}' | awk -F ' ' '{print $1}'`
+    height=`echo $data |  awk -F 'height=' '{print $2}' | awk -F ' ' '{print $1}'`
+    echo "${width}|${height}"
+}
+
+
 digit_half2full(){
     if [ $1 -lt 10 ] && [ $1 -ge 0 ]; then
         res=$(echo $1 | sed 's/0/０/g' | sed 's/1/１/g'  | sed 's/2/２/g'  | sed 's/3/３/g'  | sed 's/4/４/g'  | sed 's/5/５/g'  | sed 's/6/６/g'  | sed 's/7/７/g'  | sed 's/8/８/g' | sed 's/9/９/g')
@@ -271,9 +279,6 @@ stream_play_main(){
 
     #读取天气预报
     cat <( curl -s http://www.nmc.cn/publish/forecast/  ) | tr -s '\n' ' ' |  sed  's/<div class="col-xs-4">/\n/g' | sed -E 's/<[^>]+>//g' | awk -F ' ' 'NF==5{print $1,$2,$3}' | head -n 32 | tr -s '\n' ';' | sed 's/徐家汇/上海/g' | sed 's/长沙市/长沙/g' >  ${news}
-    #strline=$(cat ${news})
-
-    #echo $strline   
 
     #logo
     if [ "${param}" != "F" ]; then
@@ -330,6 +335,13 @@ stream_play_main(){
         video_format="${mapv}${delogo}eq=contrast=1"
     fi
 
+    #分辨率
+    ssize=$(get_size ${videopath})
+    sizearr=(${ssize//|/ })
+    size_width=${sizearr[0]}
+    size_height=${sizearr[1]}
+    echo size_width=$size_width
+
     #计算真正字体大小
     newfontsize=$(get_fontsize ${videopath})
     echo newfontsize=${newfontsize}
@@ -337,6 +349,7 @@ stream_play_main(){
     halfnewfontsize=$(expr ${newfontsize} \* 75 / 100)
 
     #显示时长
+    #播放百分比%{eif\:n\/nb_frames\:d}%%
     duration=$(get_duration2 "${videopath}")
     content="%{pts\:gmtime\:0\:%H\\\\\:%M\\\\\:%S}${enter}${duration}"
     drawtext1="drawtext=fontsize=${halfnewfontsize}:fontcolor=${fontcolor}:text='${content}':fontfile=${fontdir}:expansion=normal:x=w-line_h\*8:y=line_h\*3:shadowx=2:shadowy=2:${fontbg}"
@@ -344,6 +357,8 @@ stream_play_main(){
     #天气预报
     #从左往右drawtext2="drawtext=fontsize=${newfontsize}:fontcolor=${fontcolor}:text='${news}':fontfile=${fontdir}:expansion=normal:x=(mod(5*n\,w+tw)-tw):y=h-line_h-10:shadowx=2:shadowy=2:${fontbg}"
     #从右到左
+    crop_width=$(expr ${size_width} / 4)
+    crop_x=$(expr ${size_width} \* 3 / 4)
     drawtext2="drawtext=fontsize=${halfnewfontsize}:fontcolor=${fontcolor}:textfile='${news}':fontfile=${fontdir}:expansion=normal:x=w-mod(max(t-1\,0)*(w+tw)/215\,(w+tw)):y=5:shadowx=2:shadowy=2:${fontbg}"
     
     echo ${cur_file}

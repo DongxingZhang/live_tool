@@ -42,3 +42,20 @@ ffmpeg -i /mnt/smb/µçÊÓ¾ç/½ñÉúÎÞ»Ú¹úÓï720P/06.ts -i /mnt/tool/live-tool/logo/log
       ffmpeg -re -loglevel ${logging} -i "$file" -map ${mapv} -map ${mapa} -preset ${preset_decode_speed} -vf "${video_format}"  -i "${image}" -filter_complex "${watermark}" -c:v libx264 -c:a aac -b:a 192k  -strict -2 -f flv ${rtmp}
 
 
+¿¿¿¿¿¿¿¿¿¿¿¿¿¿¿¿¿¿¿¿¿¿¿¿¿¿
+
+¿¿¿¿¿¿¿¿¿¿¿¿¿¿¿¿¿¿¿¿¿¿¿¿¿¿¿¿¿¿¿¿¿¿¿¿¿¿FFmpeg¿¿¿¿¿¿¿¿¿¿¿¿¿¿¿¿¿¿¿¿¿¿¿¿¿¿¿
+
+¿¿¿¿¿¿¿¿¿123¿¿¿¿¿¿FFmpeg¿drawtext¿¿¿¿¿¿¿¿¿¿¿drawtext¿¿¿¿¿¿¿¿¿¿¿¿¿¿¿¿¿¿¿¿¿¿¿¿¿¿¿¿¿¿¿¿¿¿¿¿¿¿¿¿¿¿¿¿¿¿¿¿¿¿¿¿¿¿¿¿¿¿¿¿¿¿¿¿¿¿¿¿¿¿¿¿¿
+
+ffmpeg -i input.mp4 -vf "drawtext=text='¿¿¿¿¿¿¿':fontfile=SimHei.ttf:fontcolor=red:x=w-mod(max(t-1\,0)*(w+tw)/10\,w+tw):y=h/10" output.mp4
+¿¿
+¿¿¿input.mp4¿¿¿¿¿¿¿¿output.mp4¿¿¿¿¿¿¿¿text¿¿¿¿¿¿¿¿fontfile¿¿¿¿¿¿fontcolor¿¿¿¿¿¿x¿y¿¿¿¿¿¿¿w¿¿¿¿¿¿h¿¿¿¿¿¿t¿¿¿¿tw¿¿¿¿¿¿¿¿¿¿¿¿¿¿¿¿¿¿¿¿¿¿
+
+¿¿¿¿¿¿¿¿¿¿¿¿¿¿¿¿¿¿¿¿¿¿¿¿¿¿¿¿¿¿¿¿¿¿¿crop¿¿¿¿¿¿¿¿¿¿¿¿¿¿¿¿¿¿¿¿¿¿¿¿¿¿¿¿¿¿¿¿¿¿¿¿¿¿¿¿¿¿¿
+
+ffmpeg -i input.mp4 -filter_complex "[0:v]crop=w/2:h/4:x=w/2:y=0[c];[c]drawtext=text='¿¿¿¿¿¿¿¿¿¿¿':fontfile=SimHei.ttf:fontcolor=red:x=w-mod(max(t-1\,0)*(w+tw)/10\,w+tw):y=h/10[dt];[0:v][dt]overlay=x=W-w:y=0" output.mp4
+¿¿
+¿¿¿crop¿¿¿¿¿¿¿¿¿¿¿¿¿¿¿¿¿¿¿¿¿¿¿¿¿¿¿¿¿¿[c]¿¿¿¿[c]¿¿¿¿¿¿¿¿¿¿[dt]¿¿¿¿[dt]¿¿¿¿¿¿¿¿¿
+
+¿¿¿¿¿¿¿¿¿¿¿¿¿¿¿¿¿¿¿¿¿¿¿¿¿¿¿¿¿
