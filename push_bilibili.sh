@@ -7,6 +7,7 @@ red='\033[0;31m'
 green='\033[0;32m'
 yellow='\033[0;33m'
 font="\033[0m"
+
 # 定义推流地址和推流码
 #rtmp="rtmp://www.tomandjerry.work/live/livestream"
 #rtmp="rtmp://127.0.0.1:1935/live/1"
@@ -39,7 +40,7 @@ enter=`echo -e "\n''"`
 split=`echo -e "\t''"`
 
 #休息时间
-rest_start=1
+rest_start=21
 rest_end=7
 
 
@@ -166,7 +167,7 @@ get_duration(){
 get_duration2(){
     data=`ffprobe -hide_banner -show_format -show_streams "$1" 2>&1`
     Duration=`echo $data |awk -F 'Duration: ' '{print $2}' | awk -F ',' '{print $1}' | awk -F '.' '{print $1}' | awk -F ':' '{print $1"\:"$2"\:"$3}'`
-    echo ${Duration} 
+    echo ${Duration}
 }
 
 get_fontsize(){
@@ -175,7 +176,7 @@ get_fontsize(){
     height=`echo $data |  awk -F 'height=' '{print $2}' | awk -F ' ' '{print $1}'`
     newfontsize=`echo "scale=5;sqrt($width*$width+$height*$height)/2203*$fontsize" | bc`
     newfontsize=`echo "scale=0;$newfontsize/1" | bc`
-    echo $newfontsize
+    echo ${newfontsize}
 }
 
 get_size(){
@@ -359,7 +360,7 @@ stream_play_main(){
     #从右到左
     crop_width=$(expr ${size_width} / 4)
     crop_x=$(expr ${size_width} \* 3 / 4)
-    drawtext2="drawtext=fontsize=${halfnewfontsize}:fontcolor=${fontcolor}:textfile='${news}':fontfile=${fontdir}:expansion=normal:x=w-mod(max(t-1\,0)*(w+tw)/215\,(w+tw)):y=5:shadowx=2:shadowy=2:${fontbg}"
+    drawtext2="drawtext=fontsize=${halfnewfontsize}:fontcolor=${fontcolor}:textfile='${news}':fontfile=${fontdir}:expansion=normal:x=w-mod(max(t-1\,0)*(w+tw\*3)/415\,(w+tw\*3)):y=5:shadowx=2:shadowy=2:${fontbg}"
     
     echo ${cur_file}
     echo ${file_count}
@@ -456,7 +457,7 @@ get_playing_video(){
             file_count=`ls -l ${videopath}  |grep "^-"|wc -l`
             for subdirfile in "${videopath}"/*; do           
                 cur_file=$(expr $cur_file + 1)
-                if [[ -e "${playlist_done}" ]] && cat "${playlist_done}" | grep "$subdirfile" > /dev/null; then
+                if [[ -e "${playlist_done}" ]] && cat "${playlist_done}" | grep "${subdirfile}" > /dev/null; then
                     continue
                 fi
                 found=1
@@ -513,7 +514,7 @@ stream_append(){
         clear
         echo "====视频列表===="
         videono=0
-        for subdirfile in $(find /mnt/smb/电视剧 -maxdepth 1 -type d | grep "${param}"  | awk -F ':' '{print $1}')
+        for subdirfile in $(find /mnt/smb/电视剧 -maxdepth 1 | grep "${param}"  | awk -F ':' '{print $1}')
         do
             filename=`echo ${subdirfile} | awk -F "/" '{print $NF}'`
             filenamelist[$videono]=${filename}
@@ -530,7 +531,7 @@ stream_append(){
                 if [[ -e "${playlist}" ]] && cat "${playlist}" | grep "${filenamelist[$vindex]}" > /dev/null; then
                     echo "已经添加过/mnt/smb/电视剧/${filenamelist[$vindex]},不要再添加."
                 else
-                    echo "000|0|9|9|0|/mnt/smb/电视剧/${filenamelist[$vindex]}" >> ${playlist}
+                    echo "000|F|F|F|F|/mnt/smb/电视剧/${filenamelist[$vindex]}" >> ${playlist}
                     echo "添加/mnt/smb/电视剧/${filenamelist[$vindex]}成功"  
                 fi                
             fi
@@ -583,12 +584,9 @@ start_menu(){
         stream_start "${param}" "${mode}"
         ;;
         3)
-        stream_play_main "000|0|9|9|0|${param}"
-        ;;
-        4)
         stream_append "${param}"
         ;;
-        5)
+        4)
         stream_stop
         ;;
         *)
