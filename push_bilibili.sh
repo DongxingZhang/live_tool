@@ -321,7 +321,7 @@ stream_play_main(){
         ffmpeg -i ${videopath} -map ${maps} -y ${subfile}        
         cat ${subfile} | sed -E 's/<[^>]+>//g' > ./sub/tmp
         mv ./sub/tmp ${subfile}
-        mapv="${mapv}subtitles=filename=${subfile}:fontsdir=${curdir}/fonts:force_style='Fontname=华文仿宋,Fontsize=14,Alignment=0,MarginV=50'[v];[v]"
+        mapv="${mapv}subtitles=filename=${subfile}:fontsdir=${curdir}/fonts:force_style='Fontname=华文仿宋,Fontsize=18,Alignment=0,MarginV=50'[v];[v]"
     fi
 
     if [ "${lighter}" != "F" ];then
