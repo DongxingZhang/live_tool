@@ -21,6 +21,9 @@ news=${curdir}/log/news.txt
 
 subfile=${curdir}/sub/sub.srt
 
+playlist=${curdir}/list/playlist.txt
+playlist_done=${curdir}/list/playlist_done.m3u
+
 #配置字体
 fontdir=${curdir}/fonts/STFANGSO.TTF
 fontsize=70
@@ -93,6 +96,11 @@ digit_half2full(){
         echo $1
     fi
 }
+
+find_substr_count(){
+    count=`echo "$1" | grep -o "$2" | wc -l`
+    echo ${count}
+}
 ####功能函数END
 
 stream_play_main(){
@@ -111,8 +119,7 @@ stream_play_main(){
     cur_file=${arr[6]}
     file_count=${arr[7]}
     play_time=${arr[8]}
-    playlist_done=${arr[9]}
-    videoname=${arr[10]}
+    videoname=${arr[9]}
     mode=$2
 
     echo -e ${yellow}视频类别（delogo）:${font} ${video_type}
@@ -123,8 +130,7 @@ stream_play_main(){
     echo -e ${yellow}视频路径:${font} ${videopath}
     echo -e ${yellow}当前集数:${font} ${cur_file}
     echo -e ${yellow}总集数:${font} ${file_count}
-    echo -e ${yellow}播放标记:${font} ${play_time}
-    echo -e ${yellow}已播放:${font} ${playlist_done}
+    echo -e ${yellow}播放标记:${font} ${play_time}    
     echo -e ${yellow}电视剧名称:${font} ${videoname}
     echo -e ${yellow}播放模式（bg, fg, test）:${font} ${mode}
 
@@ -183,7 +189,9 @@ stream_play_main(){
     echo ${mapv}, ${mapa}, ${maps}
 
     #读取天气预报
-    cat <( curl -s http://www.nmc.cn/publish/forecast/  ) | tr -s '\n' ' ' |  sed  's/<div class="col-xs-4">/\n/g' | sed -E 's/<[^>]+>//g' | awk -F ' ' 'NF==5{print $1,$2,$3}' | head -n 32 | tr -s '\n' ';' | sed 's/徐家汇/上海/g' | sed 's/长沙市/长沙/g' >  ${news}
+    echo $(get_next_video_name) > ${news}
+    #cat <( curl -s http://www.nmc.cn/publish/forecast/  ) | tr -s '\n' ' ' |  sed  's/<div class="col-xs-4">/\n/g' | sed -E 's/<[^>]+>//g' | awk -F ' ' 'NF==5{print $1,$2,$3}' | head -n 32 | tr -s '\n' ';' | sed 's/徐家汇/上海/g' | sed 's/长沙市/长沙/g' >>  ${news}
+    
 
     #logo
     if [ "${param}" != "F" ]; then
@@ -211,6 +219,22 @@ stream_play_main(){
         delogo="delogo=x=1100:y=30:w=120:h=55:show=0,"
     elif [ "${video_type}" = "TV5" ];then
         delogo="delogo=x=582:y=26:w=74:h=52:show=0,"
+    elif [ "${video_type}" = "TV6" ];then
+        delogo="delogo=x=510:y=30:w=72:h=62:show=0,"
+    elif [ "${video_type}" = "TV7" ];then
+        delogo="delogo=x=476:y=28:w=66:h=58:show=0,"
+    elif [ "${video_type}" = "TV8" ];then
+        delogo="delogo=x=876:y=42:w=86:h=64:show=0,"
+    elif [ "${video_type}" = "TV9" ];then
+        delogo="delogo=x=546:y=26:w=148:h=80:show=0,"
+    elif [ "${video_type}" = "TVA" ];then
+        delogo="delogo=x=1000:y=32:w=218:h=54:show=0,"
+    elif [ "${video_type}" = "TVB" ];then
+        delogo="delogo=x=1452:y=50:w=114:h=104:show=0,"
+    elif [ "${video_type}" = "TVC" ];then
+        delogo="delogo=x=422:y=22:w=56:h=50:show=0,"        
+    elif [ "${video_type}" = "AD1" ];then
+        delogo="delogo=x=0:y=14:w=1079:h=64:show=0,"
     elif [ "${video_type}" = "CCV" ];then
         delogo="delogo=x=80:y=50:w=155:h=120:show=0,"
     elif [ "${video_type}" = "CC2" ];then
@@ -265,7 +289,7 @@ stream_play_main(){
     #从右到左
     crop_width=$(expr ${size_width} / 4)
     crop_x=$(expr ${size_width} \* 3 / 4)
-    drawtext2="drawtext=fontsize=${halfnewfontsize}:fontcolor=${fontcolor}:textfile='${news}':fontfile=${fontdir}:expansion=normal:x=w-mod(max(t-1\,0)*(w+tw\*3)/415\,(w+tw\*3)):y=5:shadowx=2:shadowy=2:${fontbg}"
+    drawtext2="drawtext=fontsize=${halfnewfontsize}:fontcolor=${fontcolor}:textfile='${news}':fontfile=${fontdir}:expansion=normal:x=w-mod(max(t-1\,0)*(w+tw\*3)/415\,(w+tw\*3)):y=h-line_h-5:shadowx=2:shadowy=2:${fontbg}"
     
     echo ${cur_file}
     echo ${file_count}
@@ -277,6 +301,10 @@ stream_play_main(){
         content2=`echo ${videoname} | sed 's#.#&\'"${enter}"'#g'`${cur_file2}
         echo ${content2}
     fi
+    cont_len=$(find_substr_count ${content2} ${enter})
+    cont_len=$(expr ${cont_len} + 1)
+    cont_len=$(expr ${cont_len} \* 100 / 200)
+    echo 片名OFFSET=${cont_len}
 
 #    if [ "${play_time}" = "playing" ]; then
 #        cur_file2=$(digit_half2full ${cur_file})
@@ -291,7 +319,7 @@ stream_play_main(){
 #        #res_end2=$(digit_half2full ${res_end2})
 #        #content2="${rest_start2}${enter}点${enter}到${enter}${res_end2}${enter}点${enter}休${enter}息${enter}第${enter}${cur_file2}${enter}集"
 #    fi
-    drawtext3="drawtext=fontsize=${newfontsize}:fontcolor=${fontcolor}:text='${content2}':fontfile=${fontdir}:expansion=normal:x=w-line_h\*3:y=h/2-tw/4:shadowx=2:shadowy=2:${fontbg}"
+    drawtext3="drawtext=fontsize=${newfontsize}:fontcolor=${fontcolor}:text='${content2}':fontfile=${fontdir}:expansion=normal:x=w-line_h\*4:y=h/2-line_h\*${cont_len}:shadowx=2:shadowy=2:${fontbg}"
         
     watermark="[1:v]scale=-1:${newfontsize}\*2[wm];[bg][wm]overlay=overlay_w/3:overlay_h/2[bg1]"
     video_format="${video_format},${drawtext1},${drawtext2},${drawtext3}[bg];${mapa}volume=1.0[bga];${watermark};"
@@ -319,9 +347,12 @@ stream_play_main(){
 
     echo mode=${mode}
     echo time_seconds=${time_seconds}
+    echo play_time=${play_time}
 
     if [ "${mode}" != "test" ] && [ ${time_seconds} -ge 120 ]; then
-        echo "$videopath" >> "${playlist_done}"
+        if [ "${play_time}" = "playing" ];then
+            echo "$videopath" >> "${playlist_done}"
+        fi
     fi
 
 }
@@ -346,26 +377,22 @@ ffmpeg_install(){
 
 
 get_rest(){
-    hours=$(TZ=Asia/Shanghai date +%H)
-    playlistfile="${curdir}/list/playlist.txt|${curdir}/list/playlist_done.m3u"
+    hours=$1    
     #测试是否为休息时间
     if [ ${hours} -ge 0 ] && [ ${hours} -le 5 ];then
-        echo "${playlistfile}|0"
+        echo "0"
     elif [ ${hours} -ge 6 ] && [ ${hours} -le 11 ];then
-        echo "${playlistfile}|1"
+        echo "1"
     elif [ ${hours} -ge 12 ] && [ ${hours} -le 17 ];then
-        echo "${playlistfile}|2"
+        echo "2"
     else
-        echo "${playlistfile}|3"
+        echo "3"
     fi
 }
 
 
 get_playing_video(){
-    mode=$1
-    playlist=$2
-    playlist_done=$3
-    playlist_index=$4
+    playlist_index=$1
     for line in $(cat ${playlist})
     do    
         line=`echo ${line} | tr -d '\r'`
@@ -401,33 +428,79 @@ get_playing_video(){
                     continue
                 fi
                 found=1
-                echo "${video_type}|${lighter}|${audio}|${subtitle}|${param}|${subdirfile}|${cur_file}|${file_count}|playing|${playlist_done}|${videoname}"
+                echo "${video_type}|${lighter}|${audio}|${subtitle}|${param}|${subdirfile}|${cur_file}|${file_count}|playing|${videoname}"
                 break
             done
             if [[ "${found}" = "1" ]];then
                 break
             fi
-        elif [[ -f "${videopath}" ]] ; then
+        elif [[ -f "${videopath}" ]]; then
             if [[ -e "${playlist_done}" ]] && cat "${playlist_done}" | grep "${videopath}" > /dev/null; then
                 continue
             fi
-            echo "${video_type}|${lighter}|${audio}|${subtitle}|${param}|${videopath}|1|1|playing|${playlist_done}|${videoname}"
+            echo "${video_type}|${lighter}|${audio}|${subtitle}|${param}|${videopath}|1|1|playing|${videoname}"
             break
         fi
     done
 }
 
+get_next_video_name(){
+    timed=$(get_rest $(TZ=Asia/Shanghai date +%H))
+    timed=$(expr ${timed} + 1)
+    if [ "${timed}" = "4" ];then
+        timed=0
+    fi
+    next_video_path=$(get_playing_video ${timed})
+    arr=(${next_video_path//|/ })
+    cur_file=${arr[6]}
+    videoname=${arr[9]}
+    if [ "${timed}" = "0" ];then
+        next_tv="0:00开始播放${videoname}（${cur_file}）"
+    elif [ "${timed}" = "1" ];then
+        next_tv="6:00开始播放${videoname}（${cur_file}）"
+    elif [ "${timed}" = "2" ];then
+        next_tv="12:00开始播放${videoname}（${cur_file}）"
+    else
+        next_tv="18:00开始播放${videoname}（${cur_file}）"
+    fi
+    echo ${next_tv}
+}
+
+need_waiting(){
+    hours=$(TZ=Asia/Shanghai date +%H)
+    mins=$(TZ=Asia/Shanghai date +%M)
+    timed=$(get_rest ${hours})
+    if [ "${timed}" = "0" ];then
+        last_hour=5
+    elif [ "${timed}" = "1" ];then
+        last_hour=11
+    elif [ "${timed}" = "2" ];then
+        last_hour=17
+    else
+        last_hour=23
+    fi
+    if [ "${hours}" = "${last_hour}" ];then
+        mins2end=$(expr 59 - ${mins})
+        if [ ${mins2end} -lt 20 ];then
+            timed1=$(expr ${timed} + 1)
+            if [ "${timed1}" = "4" ];then
+                timed1=0
+            fi
+            echo ${timed1}
+        else
+            echo ${timed}
+        fi
+    else
+        echo ${timed}
+    fi
+}
+
 
 get_next(){
-    rest=$(get_rest)
-    restarr=(${rest//|/ }) 
-    playlist=${restarr[0]} 
-    playlist_done=${restarr[1]}
-    playlist_index=${restarr[2]}
-    #echo ${playlist} ${playlist_done} ${playlist_index}
-    next_video_path=$(get_playing_video $1 ${playlist} ${playlist_done} ${playlist_index}) 
+    next_video_path=$(get_playing_video $1)
     echo ${next_video_path}
 }
+
 
 
 stream_start(){    
@@ -445,8 +518,8 @@ stream_start(){
 
     while true
     do
-        next=$(get_next ${play_mode})
-        stream_play_main "${next}" "${play_mode}"        
+        next=$(get_next $(need_waiting))
+        stream_play_main "${next}" "${play_mode}"
         sleep 1
     done
 }
