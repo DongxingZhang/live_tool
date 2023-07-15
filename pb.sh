@@ -289,22 +289,22 @@ stream_play_main(){
     #从右到左
     crop_width=$(expr ${size_width} / 4)
     crop_x=$(expr ${size_width} \* 3 / 4)
-    drawtext2="drawtext=fontsize=${halfnewfontsize}:fontcolor=${fontcolor}:textfile='${news}':fontfile=${fontdir}:expansion=normal:x=w-mod(max(t-1\,0)*(w+tw\*3)/415\,(w+tw\*3)):y=h-line_h-5:shadowx=2:shadowy=2:${fontbg}"
+    drawtext2="drawtext=fontsize=${halfnewfontsize}:fontcolor=${fontcolor}:textfile='${news}':fontfile=${fontdir}:expansion=normal:x=w-mod(max(t-1\,0)*(w+tw\*3)/315\,(w+tw\*2)):y=h-line_h-5:shadowx=2:shadowy=2:${fontbg}"
     
     echo ${cur_file}
     echo ${file_count}
     
     if [ "${file_count}" = "1" ]; then
         content2=
+        cont_len=0
     else
         cur_file2=$(digit_half2full ${cur_file})
+        vn=${videoname}${cur_file2}
+        cont_len=${#vn}
         content2=`echo ${videoname} | sed 's#.#&\'"${enter}"'#g'`${cur_file2}
         echo ${content2}
     fi
-    cont_len=$(find_substr_count ${content2} ${enter})
-    cont_len=$(expr ${cont_len} + 1)
-    cont_len=$(expr ${cont_len} \* 100 / 200)
-    echo 片名OFFSET=${cont_len}
+    cont_len=$(expr ${cont_len} / 2)
 
 #    if [ "${play_time}" = "playing" ]; then
 #        cur_file2=$(digit_half2full ${cur_file})
