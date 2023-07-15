@@ -8,7 +8,7 @@ font="\033[0m"
 
 # 定义推流地址和推流码
 #rtmp="rtmp://www.tomandjerry.work/live/livestream"
-#rtmp="rtmp://127.0.0.1:1935/live/1"
+rtmp2="rtmp://127.0.0.1:1935/live/1"
 rtmp="rtmp://live-push.bilivideo.com/live-bvc/?streamname=live_97540856_1852534&key=a042d1eb6f69ca88b16f4fb9bf9a5435&schedule=rtmp&pflag=1"
 
 
@@ -28,7 +28,7 @@ playlist_done=${curdir}/list/playlist_done.m3u
 fontdir=${curdir}/fonts/STFANGSO.TTF
 fontsize=70
 fontcolor=#FDE6E0
-fontbg="box=1:boxcolor=black@0.3:boxborderw=3"
+fontbg="box=1:boxcolor=black@0.01:boxborderw=3"
 
 #ffmpeg参数
 logging="repeat+level+warning"
@@ -422,7 +422,7 @@ get_playing_video(){
             found=0
             cur_file=0
             file_count=`ls -l ${videopath}  |grep "^-"|wc -l`
-            for subdirfile in "${videopath}"/*; do           
+            for subdirfile in "${videopath}"/*; do
                 cur_file=$(expr $cur_file + 1)
                 if [[ -e "${playlist_done}" ]] && cat "${playlist_done}" | grep "${subdirfile}" > /dev/null; then
                     continue
@@ -501,6 +501,31 @@ get_next(){
     echo ${next_video_path}
 }
 
+#######得不到next video 解决方案###########
+get_rest_videos(){
+    waitingdir=$1
+    videonofile=$2
+    videono=0
+    declare -a filenamelist
+    for subdirfile in "${videopath}"/*; do
+        filenamelist[$videono]="000|0|F|F|0|${subdirfile}|1|1|rest|等待老板换片儿"
+        videono=$(expr $videono + 1)
+    done
+    video_lengh=${#filenamelist[@]}
+    touch ${videonofile}
+    next_video=`cat ${videonofile}`
+    if [ "${next_video}" =  "" ]; then
+        next_video=0
+    fi
+    if [ ${next_video} -ge ${video_lengh} ]; then
+        next_video=0
+    fi
+    echo "${filenamelist[$next_video]}"
+    next_video=$(expr $next_video + 1)
+    echo "$next_video" > ${videonofile}
+}
+#########################################
+
 
 
 stream_start(){    
@@ -519,6 +544,9 @@ stream_start(){
     while true
     do
         next=$(get_next $(need_waiting))
+        if [ "${next}" = "" ];then
+            next=$(get_rest_videos  "/mnt/smb/videos" "${cur_dir}/count/videono")
+        fi
         stream_play_main "${next}" "${play_mode}"
         sleep 1
     done
