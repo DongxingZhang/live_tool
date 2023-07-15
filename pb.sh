@@ -445,25 +445,33 @@ get_playing_video(){
 }
 
 get_next_video_name(){
-    timed=$(get_rest $(TZ=Asia/Shanghai date +%H))
-    timed=$(expr ${timed} + 1)
-    if [ "${timed}" = "4" ];then
-        timed=0
-    fi
-    next_video_path=$(get_playing_video ${timed})
-    arr=(${next_video_path//|/ })
-    cur_file=${arr[6]}
-    videoname=${arr[9]}
-    if [ "${timed}" = "0" ];then
-        next_tv="0:00开始播放${videoname}（${cur_file}）"
-    elif [ "${timed}" = "1" ];then
-        next_tv="6:00开始播放${videoname}（${cur_file}）"
-    elif [ "${timed}" = "2" ];then
-        next_tv="12:00开始播放${videoname}（${cur_file}）"
-    else
-        next_tv="18:00开始播放${videoname}（${cur_file}）"
-    fi
-    echo ${next_tv}
+    next_tv=
+    timec=$(get_rest $(TZ=Asia/Shanghai date +%H))
+    timed=${timec}
+    while true
+    do
+        timed=$(expr ${timed} + 1)
+        if [ ${timed} -ge 4 ];then
+            timed=0
+        fi
+        if [ "${timed}" = "${timec}" ];then
+            break
+        fi
+        next_video_path=$(get_playing_video ${timed})
+        arr=(${next_video_path//|/ })
+        cur_file=${arr[6]}
+        videoname=${arr[9]}
+        if [ "${timed}" = "0" ];then
+            next_tv=${next_tv}"0:00 ${videoname}（${cur_file}）;"
+        elif [ "${timed}" = "1" ];then
+            next_tv=${next_tv}"6:00 ${videoname}（${cur_file}）;"
+        elif [ "${timed}" = "2" ];then
+            next_tv=${next_tv}"12:00 ${videoname}（${cur_file}）;"
+        else
+            next_tv=${next_tv}"18:00 ${videoname}（${cur_file}）;"
+        fi
+    done
+    echo ${next_tv}" "
 }
 
 need_waiting(){
@@ -483,7 +491,7 @@ need_waiting(){
         mins2end=$(expr 59 - ${mins})
         if [ ${mins2end} -lt 20 ];then
             timed1=$(expr ${timed} + 1)
-            if [ "${timed1}" = "4" ];then
+            if [ ${timed1} -ge 4 ];then
                 timed1=0
             fi
             echo ${timed1}
