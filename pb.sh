@@ -115,13 +115,14 @@ stream_play_main(){
     lighter=${arr[1]} 
     audio=${arr[2]}
     subtitle=${arr[3]}
-    param=${arr[4]}
-    videopath=${arr[5]}
-    cur_file=${arr[6]}
-    file_count=${arr[7]}
-    play_time=${arr[8]}
-    videoname=${arr[9]}
+    param=${arr[4]}    
+    cur_file=${arr[5]}
+    file_count=${arr[6]}
+    play_time=${arr[7]}
+    videoname=${arr[8]}
+    videopath=${arr[9]}
     mode=$2
+    period=$3
 
     echo -e ${yellow}视频类别（delogo）:${font} ${video_type}
     echo -e ${yellow}是否明亮（F为维持原亮度）:${font} ${lighter}
@@ -141,6 +142,7 @@ stream_play_main(){
     fi
 
     if [ "${mode}" != "test" ];then
+        #ps -ef | grep "${rtmp}" | grep -v grep | awk '{print $2}' | xargs kill -9
         killall ffmpeg
     fi
    
@@ -231,7 +233,7 @@ stream_play_main(){
     elif [ "${video_type}" = "TVA" ];then
         delogo="delogo=x=1000:y=32:w=218:h=54:show=0,"
     elif [ "${video_type}" = "TVB" ];then
-        delogo="delogo=x=1452:y=50:w=114:h=104:show=0,"
+        delogo="delogo=x=1452:y=50:w=180:h=104:show=0,"
     elif [ "${video_type}" = "TVC" ];then
         delogo="delogo=x=422:y=22:w=56:h=50:show=0,"        
     elif [ "${video_type}" = "AD1" ];then
@@ -350,9 +352,9 @@ stream_play_main(){
     echo time_seconds=${time_seconds}
     echo play_time=${play_time}
 
-    if [ "${mode}" != "test" ] && [ ${time_seconds} -ge 120 ]; then
+    if [ "${mode}" != "test" ] && [ ${time_seconds} -ge 700 ]; then
         if [ "${play_time}" = "playing" ];then
-            echo "$videopath" >> "${playlist_done}"
+            echo "${period}|${videopath}" >> "${playlist_done}"
         fi
     fi
 
@@ -379,7 +381,7 @@ ffmpeg_install(){
 
 get_rest(){
     hours=$1
-    index=F
+    ret="F|F|F"
     for line in $(cat ${config})
     do
         line=`echo ${line} | tr -d '\r'`
@@ -395,16 +397,18 @@ get_rest(){
         index=${arr[2]}
         if [ ${start} -le ${end} ];then
             if [ ${hours} -ge ${start} ] && [ ${hours} -le ${end} ];then
+                ret=${line}
                 break
             fi
         else
             if [ ${hours} -ge ${start} ] || [ ${hours} -le ${end} ];then
+                ret=${line}
                 break
             fi
         fi
         
     done
-    echo ${index}
+    echo ${ret}
 }
 
 
@@ -429,8 +433,7 @@ get_playing_video(){
         videopath=${arr[6]}
         videoname=${arr[7]}
 
-        #搜索时间段 分四个时间段
-        #0: 0点-6点  1:6点-12点  2:12点-18点 3:18点-24点
+        #搜索时间段        
         if [[ "${video_index}" != "${playlist_index}" ]];then
             continue
         fi
@@ -441,21 +444,21 @@ get_playing_video(){
             file_count=`ls -l ${videopath}  |grep "^-"|wc -l`
             for subdirfile in "${videopath}"/*; do
                 cur_file=$(expr $cur_file + 1)
-                if [[ -e "${playlist_done}" ]] && cat "${playlist_done}" | grep "${subdirfile}" > /dev/null; then
+                if [[ -e "${playlist_done}" ]] && cat "${playlist_done}" | grep "${playlist_index}|${subdirfile}" > /dev/null; then
                     continue
                 fi
                 found=1
-                echo "${video_type}|${lighter}|${audio}|${subtitle}|${param}|${subdirfile}|${cur_file}|${file_count}|playing|${videoname}"
+                echo "${video_type}|${lighter}|${audio}|${subtitle}|${param}|${cur_file}|${file_count}|playing|${videoname}|${subdirfile}"
                 break
             done
             if [[ "${found}" = "1" ]];then
                 break
             fi
         elif [[ -f "${videopath}" ]]; then
-            if [[ -e "${playlist_done}" ]] && cat "${playlist_done}" | grep "${videopath}" > /dev/null; then
+            if [[ -e "${playlist_done}" ]] && cat "${playlist_done}" | grep "${playlist_index}|${videopath}" > /dev/null; then
                 continue
             fi
-            echo "${video_type}|${lighter}|${audio}|${subtitle}|${param}|${videopath}|1|1|playing|${videoname}"
+            echo "${video_type}|${lighter}|${audio}|${subtitle}|${param}|1|1|playing|${videoname}|${videopath}"
             break
         fi
     done
@@ -464,15 +467,19 @@ get_playing_video(){
 
 get_next_video_name(){
     next_tv=
-    timec=$(get_rest $(TZ=Asia/Shanghai date +%H))
-    if [ "${timec}" = "F" ];then
+    periodcount=`cat ${config} | grep -v "^#" | sed /^$/d | wc -l`
+    ret=$(get_rest $(TZ=Asia/Shanghai date +%H))
+    if [ "${ret}" = "F|F|F" ];then
         timec=4
+    else
+        arr=(${ret//|/ })
+        timec=${arr[2]}
     fi
     timed=${timec}
     while true
     do
         timed=$(expr ${timed} + 1)
-        if [ ${timed} -ge 4 ];then
+        if [ ${timed} -ge ${periodcount} ];then
             timed=0
         fi
         if [ "${timed}" = "${timec}" ];then
@@ -480,36 +487,26 @@ get_next_video_name(){
         fi
         next_video_path=$(get_playing_video ${timed})
         arr=(${next_video_path//|/ })
-        cur_file=${arr[6]}
-        videoname=${arr[9]}
-        if [ "${timed}" = "0" ];then
-            next_tv=${next_tv}" 0:00 ${videoname}${cur_file},"
-        elif [ "${timed}" = "1" ];then
-            next_tv=${next_tv}" 6:00 ${videoname}${cur_file},"
-        elif [ "${timed}" = "2" ];then
-            next_tv=${next_tv}" 12:00 ${videoname}${cur_file},"
-        else
-            next_tv=${next_tv}" 18:00 ${videoname}${cur_file},"
-        fi
+        cur_file=${arr[5]}
+        tvname=${arr[8]}
+        period=`cat ${config} | grep "|${timed}$"`
+        periodarr=(${period//|/ })        
+        next_tv=${next_tv}" ${periodarr[0]}:00 ${tvname}${cur_file}, "
     done
     length=${#next_tv}
-    echo ${next_tv::length-4}
+    echo ${next_tv::length-2}
 }
 
 
 need_waiting(){
     hours=$(TZ=Asia/Shanghai date +%H)
     mins=$(TZ=Asia/Shanghai date +%M)
-    timed=$(get_rest ${hours})
-    if [ "${timed}" = "0" ];then
-        last_hour=5
-    elif [ "${timed}" = "1" ];then
-        last_hour=11
-    elif [ "${timed}" = "2" ];then
-        last_hour=17
-    elif [ "${timed}" = "3" ];then
-        last_hour=23
-    else
+    ret=$(get_rest ${hours})
+    periodcount=`cat ${config} | grep -v "^#" | sed /^$/d | wc -l`
+    arr=(${ret//|/ })
+    last_hour=${arr[1]}
+    timed=${arr[2]}
+    if [ "${timed}" = "F" ];then
         echo ${timed}
         return
     fi
@@ -517,7 +514,7 @@ need_waiting(){
         mins2end=$(expr 59 - ${mins})
         if [ ${mins2end} -lt 20 ];then
             timed1=$(expr ${timed} + 1)
-            if [ ${timed1} -ge 4 ];then
+            if [ ${timed1} -ge ${periodcount} ];then
                 timed1=0
             fi
             echo ${timed1}
@@ -574,12 +571,14 @@ stream_start(){
     echo "播放模式:${play_mode}"
 
     while true
-    do
-        next=$(get_next $(need_waiting))
-        if [ "${next}" = "" ];then
+    do        
+        period=$(need_waiting)
+        if [ "${period}" = "F" ];then
             next=$(get_rest_videos  "/mnt/smb/videos" "${cur_dir}/count/videono")
-        fi
-        stream_play_main "${next}" "${play_mode}"
+        else
+            next=$(get_next ${period})
+        fi        
+        stream_play_main "${next}" "${play_mode}" "${period}"
         sleep 1
     done
 }
