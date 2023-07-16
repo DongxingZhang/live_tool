@@ -21,6 +21,7 @@ news=${curdir}/log/news.txt
 
 subfile=${curdir}/sub/sub.srt
 
+config=${curdir}/list/config.txt
 playlist=${curdir}/list/playlist.txt
 playlist_done=${curdir}/list/playlist_done.m3u
 
@@ -342,7 +343,7 @@ stream_play_main(){
 
     if [ "${mode}" != "test" ] && [ ${time_seconds} -lt 120 ]; then
         echo "$(TZ=Asia/Shanghai date +"%Y-%m-%d %H:%M:%S") ffmpeg 命令失败！！需要调试" >> "${playlist_done}"
-        exit 1
+        return
     fi
 
     echo mode=${mode}
@@ -377,17 +378,33 @@ ffmpeg_install(){
 
 
 get_rest(){
-    hours=$1    
-    #测试是否为休息时间
-    if [ ${hours} -ge 0 ] && [ ${hours} -le 5 ];then
-        echo "0"
-    elif [ ${hours} -ge 6 ] && [ ${hours} -le 11 ];then
-        echo "1"
-    elif [ ${hours} -ge 12 ] && [ ${hours} -le 17 ];then
-        echo "2"
-    else
-        echo "3"
-    fi
+    hours=$1
+    index=F
+    for line in $(cat ${config})
+    do
+        line=`echo ${line} | tr -d '\r'`
+        line=`echo ${line} | tr -d '\n'`
+        # 判断是否要跳过
+        flag=${line:0:1}
+        if [ "${flag}" = "#" ];then
+            continue
+        fi
+        arr=(${line//|/ })
+        start=${arr[0]}
+        end=${arr[1]}
+        index=${arr[2]}
+        if [ ${start} -le ${end} ];then
+            if [ ${hours} -ge ${start} ] && [ ${hours} -le ${end} ];then
+                break
+            fi
+        else
+            if [ ${hours} -ge ${start} ] || [ ${hours} -le ${end} ];then
+                break
+            fi
+        fi
+        
+    done
+    echo ${index}
 }
 
 
@@ -444,9 +461,13 @@ get_playing_video(){
     done
 }
 
+
 get_next_video_name(){
     next_tv=
     timec=$(get_rest $(TZ=Asia/Shanghai date +%H))
+    if [ "${timec}" = "F" ];then
+        timec=4
+    fi
     timed=${timec}
     while true
     do
@@ -462,17 +483,19 @@ get_next_video_name(){
         cur_file=${arr[6]}
         videoname=${arr[9]}
         if [ "${timed}" = "0" ];then
-            next_tv=${next_tv}"0:00 ${videoname}（${cur_file}）;"
+            next_tv=${next_tv}" 0:00 ${videoname}${cur_file},"
         elif [ "${timed}" = "1" ];then
-            next_tv=${next_tv}"6:00 ${videoname}（${cur_file}）;"
+            next_tv=${next_tv}" 6:00 ${videoname}${cur_file},"
         elif [ "${timed}" = "2" ];then
-            next_tv=${next_tv}"12:00 ${videoname}（${cur_file}）;"
+            next_tv=${next_tv}" 12:00 ${videoname}${cur_file},"
         else
-            next_tv=${next_tv}"18:00 ${videoname}（${cur_file}）;"
+            next_tv=${next_tv}" 18:00 ${videoname}${cur_file},"
         fi
     done
-    echo ${next_tv}" "
+    length=${#next_tv}
+    echo ${next_tv::length-4}
 }
+
 
 need_waiting(){
     hours=$(TZ=Asia/Shanghai date +%H)
@@ -484,8 +507,11 @@ need_waiting(){
         last_hour=11
     elif [ "${timed}" = "2" ];then
         last_hour=17
-    else
+    elif [ "${timed}" = "3" ];then
         last_hour=23
+    else
+        echo ${timed}
+        return
     fi
     if [ "${hours}" = "${last_hour}" ];then
         mins2end=$(expr 59 - ${mins})
@@ -509,7 +535,7 @@ get_next(){
     echo ${next_video_path}
 }
 
-#######得不到next video 解决方案###########
+
 get_rest_videos(){
     waitingdir=$1
     videonofile=$2
@@ -532,8 +558,6 @@ get_rest_videos(){
     next_video=$(expr $next_video + 1)
     echo "$next_video" > ${videonofile}
 }
-#########################################
-
 
 
 stream_start(){    
@@ -571,6 +595,9 @@ stream_append(){
         for subdirfile in $(find /mnt/smb/电视剧 -maxdepth 1 | grep "${param}"  | awk -F ':' '{print $1}')
         do
             filename=`echo ${subdirfile} | awk -F "/" '{print $NF}'`
+            if [[ -e "${playlist}" ]] && cat "${playlist}" | grep "${filename}" > /dev/null; then
+                continue
+            fi
             filenamelist[$videono]=${filename}
             videono=$(expr $videono + 1)
             echo "[${videono}]: ${filename}"
