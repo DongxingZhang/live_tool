@@ -22,6 +22,7 @@ news=${curdir}/log/news.txt
 subfile=${curdir}/sub/sub.srt
 
 config=${curdir}/list/config.txt
+delogofile=${curdir}/list/delogo.txt
 playlist=${curdir}/list/playlist.txt
 playlist_done=${curdir}/list/playlist_done.m3u
 
@@ -107,8 +108,8 @@ find_substr_count(){
 stream_play_main(){
     line=$1
 
-    line=`echo ${line} | tr -d '\r'`
-    line=`echo ${line} | tr -d '\n'`
+    line=`echo ${line} | tr -d '\r' | tr -d '\n'`
+    
 
     arr=(${line//|/ }) 
     video_type=${arr[0]} 
@@ -207,52 +208,16 @@ stream_play_main(){
 
     echo logo=${logo} 
 
-    #去掉logo
-    if [ "${video_type}" = "YOU" ];then
-        delogo="delogo=x=795:y=25:w=160:h=35:show=0,"
-    elif [ "${video_type}" = "TV0" ];then
-        delogo="delogo=x=965:y=40:w=75:h=60:show=0,"
-    elif [ "${video_type}" = "TV1" ];then
-        delogo="delogo=x=400:y=30:w=75:h=60:show=0,"
-    elif [ "${video_type}" = "TV2" ];then
-        delogo="delogo=x=525:y=30:w=85:h=60:show=0,"
-    elif [ "${video_type}" = "TV3" ];then
-        delogo="delogo=x=795:y=30:w=75:h=60:show=0,"
-    elif [ "${video_type}" = "TV4" ];then
-        delogo="delogo=x=1100:y=30:w=120:h=55:show=0,"
-    elif [ "${video_type}" = "TV5" ];then
-        delogo="delogo=x=582:y=26:w=74:h=52:show=0,"
-    elif [ "${video_type}" = "TV6" ];then
-        delogo="delogo=x=510:y=30:w=72:h=62:show=0,"
-    elif [ "${video_type}" = "TV7" ];then
-        delogo="delogo=x=476:y=28:w=66:h=58:show=0,"
-    elif [ "${video_type}" = "TV8" ];then
-        delogo="delogo=x=876:y=42:w=86:h=64:show=0,"
-    elif [ "${video_type}" = "TV9" ];then
-        delogo="delogo=x=546:y=26:w=148:h=80:show=0,"
-    elif [ "${video_type}" = "TVA" ];then
-        delogo="delogo=x=1000:y=32:w=218:h=54:show=0,"
-    elif [ "${video_type}" = "TVB" ];then
-        delogo="delogo=x=1452:y=50:w=180:h=104:show=0,"
-    elif [ "${video_type}" = "TVC" ];then
-        delogo="delogo=x=422:y=22:w=56:h=50:show=0,"        
-    elif [ "${video_type}" = "AD1" ];then
-        delogo="delogo=x=0:y=14:w=1079:h=64:show=0,"
-    elif [ "${video_type}" = "CCV" ];then
-        delogo="delogo=x=80:y=50:w=155:h=120:show=0,"
-    elif [ "${video_type}" = "CC2" ];then
-        delogo="delogo=x=50:y=45:w=120:h=60:show=0,"
-    elif [ "${video_type}" = "TR0" ];then
-        delogo="delogo=x=5:y=5:w=1270:h=40:show=0,delogo=x=1050:y=610:w=200:h=100:show=0,delogo=x=250:y=580:w=750:h=120:show=0,"
-    elif [ "${video_type}" = "CC1" ];then #去掉CCTV6的标题
-        delogo="scale=w=1080:h=-1,delogo=x=945:y=40:w=75:h=60:show=0,delogo=x=945:y=500:w=75:h=60:show=0,delogo=x=60:y=40:w=200:h=80:show=0,delogo=x=20:y=490:w=400:h=100:show=0,delogo=x=945:y=340:w=75:h=100:show=0,"
-    elif [ "${video_type}" = "AT0" ];then
-        delogo="delogo=x=560:y=5:w=64:h=68:show=0,delogo=x=560:y=490:w=140:h=45:show=0,"
-    elif [ "${video_type}" = "TWV" ];then
-        delogo="delogo=x=1042:y=58:w=190:h=86:show=0,delogo=x=94:y=38:w=248:h=60:show=0,"
-    else
+    delogos=`cat ${delogofile} | grep "^${video_type}|"`
+
+    if [ "${delogos}" = "" ];then
         delogo=""
+    else
+        delogos=`echo ${delogos} | tr -d '\r' | tr -d '\n'`
+        delogosarr=(${delogos//|/ })
+        delogo="${delogosarr[1]},"
     fi
+
 
     if [ "${maps}" != "" ];then  
         echo ffmpeg -i ${videopath} -map ${maps} -y ${subfile}      
@@ -298,8 +263,8 @@ stream_play_main(){
     echo ${file_count}
     
     if [ "${file_count}" = "1" ]; then
-        content2=
-        cont_len=0
+        content2=${videoname}
+        cont_len=${#videoname}
     else
         cur_file2=$(digit_half2full ${cur_file})
         vn=${videoname}${cur_file2}
@@ -384,8 +349,7 @@ get_rest(){
     ret="F|F|F"
     for line in $(cat ${config})
     do
-        line=`echo ${line} | tr -d '\r'`
-        line=`echo ${line} | tr -d '\n'`
+        line=`echo ${line} | tr -d '\r' | tr -d '\n'`
         # 判断是否要跳过
         flag=${line:0:1}
         if [ "${flag}" = "#" ];then
@@ -416,8 +380,7 @@ get_playing_video(){
     playlist_index=$1
     for line in $(cat ${playlist})
     do    
-        line=`echo ${line} | tr -d '\r'`
-        line=`echo ${line} | tr -d '\n'`     
+        line=`echo ${line} | tr -d '\r' | tr -d '\n'`
         # 判断是否要跳过   
         flag=${line:0:1}
         if [ "${flag}" = "#" ];then
@@ -490,8 +453,9 @@ get_next_video_name(){
         cur_file=${arr[5]}
         tvname=${arr[8]}
         period=`cat ${config} | grep "|${timed}$"`
+        period=`echo ${period} | tr -d '\r' | tr -d '\n'`
         periodarr=(${period//|/ })        
-        next_tv=${next_tv}" ${periodarr[0]}:00 ${tvname}${cur_file}, "
+        next_tv=${next_tv}" ${periodarr[0]}:00 ${tvname}(${cur_file})　"
     done
     length=${#next_tv}
     echo ${next_tv::length-2}
@@ -539,7 +503,7 @@ get_rest_videos(){
     videono=0
     declare -a filenamelist
     for subdirfile in "${videopath}"/*; do
-        filenamelist[$videono]="000|0|F|F|0|${subdirfile}|1|1|rest|等待老板换片儿"
+        filenamelist[$videono]="000|0|F|F|0|1|1|rest|等待老板换片儿|${subdirfile}"
         videono=$(expr $videono + 1)
     done
     video_lengh=${#filenamelist[@]}
