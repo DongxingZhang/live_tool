@@ -455,7 +455,7 @@ get_next_video_name(){
         period=`cat ${config} | grep "|${timed}$"`
         period=`echo ${period} | tr -d '\r' | tr -d '\n'`
         periodarr=(${period//|/ })        
-        next_tv=${next_tv}" ${periodarr[0]}:00 ${tvname}(${cur_file})　"
+        next_tv=${next_tv}"${periodarr[0]}:00 ${tvname}(${cur_file})　"
     done
     length=${#next_tv}
     echo ${next_tv::length-2}
