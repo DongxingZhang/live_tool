@@ -443,7 +443,7 @@ get_next_video_name(){
     next_tv="接下来　"
     while true
     do
-        if [ ${loop} -gt 1  ];then
+        if [ ${loop} -gt 3  ];then
             break
         fi
         loop=$(expr ${loop} + 1)
