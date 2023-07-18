@@ -257,7 +257,7 @@ stream_play_main(){
     #从右到左
     crop_width=$(expr ${size_width} / 4)
     crop_x=$(expr ${size_width} \* 3 / 4)
-    drawtext2="drawtext=fontsize=${halfnewfontsize}:fontcolor=${fontcolor}:textfile='${news}':fontfile=${fontdir}:expansion=normal:x=w-mod(max(t-1\,0)*(w+tw\*3)/315\,(w+tw\*2)):y=h-line_h-5:shadowx=2:shadowy=2:${fontbg}"
+    drawtext2="drawtext=fontsize=${halfnewfontsize}:fontcolor=${fontcolor}:textfile='${news}':fontfile=${fontdir}:expansion=normal:x=w-mod(max(t-1\,0)*(w+tw\*5)/415\,(w+tw\*5)):y=h-line_h-5:shadowx=2:shadowy=2:${fontbg}"
     
     echo ${cur_file}
     echo ${file_count}
@@ -439,8 +439,14 @@ get_next_video_name(){
         timec=${arr[2]}
     fi
     timed=${timec}
+    loop=1
+    next_tv="接下来　"
     while true
     do
+        if [ ${loop} -gt 1  ];then
+            break
+        fi
+        loop=$(expr ${loop} + 1)
         timed=$(expr ${timed} + 1)
         if [ ${timed} -ge ${periodcount} ];then
             timed=0
@@ -458,7 +464,7 @@ get_next_video_name(){
         next_tv=${next_tv}"${periodarr[0]}:00 ${tvname}(${cur_file})　"
     done
     length=${#next_tv}
-    echo ${next_tv::length-2}
+    echo ${next_tv::length-1}
 }
 
 
