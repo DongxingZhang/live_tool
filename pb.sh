@@ -107,11 +107,11 @@ find_substr_count(){
 
 stream_play_main(){
     line=$1
-
     line=`echo ${line} | tr -d '\r' | tr -d '\n'`
+    line=`echo ${line} | tr ' ' '%'`
+    echo $line
     
-
-    arr=(${line//|/ }) 
+    arr=(${line//|/ })
     video_type=${arr[0]} 
     lighter=${arr[1]} 
     audio=${arr[2]}
@@ -121,10 +121,11 @@ stream_play_main(){
     file_count=${arr[6]}
     play_time=${arr[7]}
     videoname=${arr[8]}
-    videopath=${arr[9]}
+    videopath=`echo ${arr[9]} | tr '%' ' '`
     mode=$2
     period=$3
-
+    echo ${mode}
+    echo ${period}
     echo -e ${yellow}视频类别（delogo）:${font} ${video_type}
     echo -e ${yellow}是否明亮（F为维持原亮度）:${font} ${lighter}
     echo -e ${yellow}音轨（F为不选择）:${font} ${audio}
@@ -220,8 +221,8 @@ stream_play_main(){
 
 
     if [ "${maps}" != "" ];then  
-        echo ffmpeg -i ${videopath} -map ${maps} -y ${subfile}      
-        ffmpeg -i ${videopath} -map ${maps} -y ${subfile}        
+        echo ffmpeg -i "${videopath}" -map ${maps} -y ${subfile}      
+        ffmpeg -i "${videopath}" -map ${maps} -y ${subfile}        
         cat ${subfile} | sed -E 's/<[^>]+>//g' > ./sub/tmp
         mv ./sub/tmp ${subfile}
         mapv="${mapv}subtitles=filename=${subfile}:fontsdir=${curdir}/fonts:force_style='Fontname=华文仿宋,Fontsize=18,Alignment=0,MarginV=50'[v];[v]"
@@ -234,14 +235,14 @@ stream_play_main(){
     fi
 
     #分辨率
-    ssize=$(get_size ${videopath})
+    ssize=$(get_size "${videopath}")
     sizearr=(${ssize//|/ })
     size_width=${sizearr[0]}
     size_height=${sizearr[1]}
     echo size_width=$size_width
 
     #计算真正字体大小
-    newfontsize=$(get_fontsize ${videopath})
+    newfontsize=$(get_fontsize "${videopath}")
     echo newfontsize=${newfontsize}
     #计算时间字体大小
     halfnewfontsize=$(expr ${newfontsize} \* 75 / 100)
@@ -547,7 +548,7 @@ stream_start(){
             next=$(get_rest_videos  "/mnt/smb/videos" "${cur_dir}/count/videono")
         else
             next=$(get_next ${period})
-        fi        
+        fi
         stream_play_main "${next}" "${play_mode}" "${period}"
         sleep 1
     done
