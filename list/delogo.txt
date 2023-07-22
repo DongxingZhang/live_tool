@@ -3,7 +3,7 @@ TV1|delogo=x=400:y=30:w=75:h=60:show=0
 TV2|delogo=x=525:y=30:w=85:h=60:show=0
 TV3|delogo=x=795:y=30:w=75:h=60:show=0
 TV4|delogo=x=1100:y=30:w=120:h=55:show=0
-TV5|delogo=x=582:y=26:w=74:h=52:show=0
+T5D|delogo=x=582:y=26:w=80:h=80:show=0
 TV6|delogo=x=490:y=30:w=92:h=62:show=0
 TV7|delogo=x=476:y=28:w=66:h=58:show=0
 TV8|delogo=x=860:y=30:w=100:h=75:show=0

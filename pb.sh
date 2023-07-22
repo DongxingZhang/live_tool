@@ -27,7 +27,8 @@ playlist=${curdir}/list/playlist.txt
 playlist_done=${curdir}/list/playlist_done.m3u
 
 #配置字体
-fontdir=${curdir}/fonts/STFANGSO.TTF
+fontdir=${curdir}/fonts/font.ttf
+fonttimedir=${curdir}/fonts/font_time.ttf
 fontsize=70
 fontcolor=#FDE6E0
 fontbg="box=1:boxcolor=black@0.01:boxborderw=3"
@@ -229,7 +230,7 @@ stream_play_main(){
     fi
 
     if [ "${lighter}" != "F" ];then
-        video_format="${mapv}${delogo}eq=contrast=1:brightness=0.2,curves=preset=lighter"
+        video_format="${mapv}${delogo}eq=contrast=1:brightness=0.15,curves=preset=lighter"
     else
         video_format="${mapv}${delogo}eq=contrast=1"
     fi
@@ -245,20 +246,22 @@ stream_play_main(){
     newfontsize=$(get_fontsize "${videopath}")
     echo newfontsize=${newfontsize}
     #计算时间字体大小
-    halfnewfontsize=$(expr ${newfontsize} \* 75 / 100)
+    halfnewfontsize=$(expr ${newfontsize} \* 60 / 100)
+    #设置行距
+    line_spacing=$(expr ${halfnewfontsize} / 4)
 
     #显示时长
     #播放百分比%{eif\:n\/nb_frames\:d}%%
     duration=$(get_duration2 "${videopath}")
     content="%{pts\:gmtime\:0\:%H\\\\\:%M\\\\\:%S}${enter}${duration}"
-    drawtext1="drawtext=fontsize=${halfnewfontsize}:fontcolor=${fontcolor}:text='${content}':fontfile=${fontdir}:expansion=normal:x=w-line_h\*8:y=line_h\*3:shadowx=2:shadowy=2:${fontbg}"
+    drawtext1="drawtext=fontsize=${halfnewfontsize}:fontcolor=${fontcolor}:text='${content}':fontfile=${fonttimedir}:line_spacing=${line_spacing}:expansion=normal:x=w-line_h\*8:y=line_h\*3:shadowx=2:shadowy=2:${fontbg}"
     
     #天气预报
     #从左往右drawtext2="drawtext=fontsize=${newfontsize}:fontcolor=${fontcolor}:text='${news}':fontfile=${fontdir}:expansion=normal:x=(mod(5*n\,w+tw)-tw):y=h-line_h-10:shadowx=2:shadowy=2:${fontbg}"
     #从右到左
     crop_width=$(expr ${size_width} / 4)
     crop_x=$(expr ${size_width} \* 3 / 4)
-    drawtext2="drawtext=fontsize=${halfnewfontsize}:fontcolor=${fontcolor}:textfile='${news}':fontfile=${fontdir}:expansion=normal:x=w-mod(max(t-1\,0)*(w+tw\*5)/415\,(w+tw\*5)):y=h-line_h-5:shadowx=2:shadowy=2:${fontbg}"
+    drawtext2="drawtext=fontsize=${halfnewfontsize}:fontcolor=${fontcolor}:textfile='${news}':fontfile=${fontdir}:line_spacing=${line_spacing}:expansion=normal:x=w-mod(max(t-1\,0)*(w+tw\*5)/415\,(w+tw\*5)):y=h-line_h-5:shadowx=2:shadowy=2:${fontbg}"
     
     echo ${cur_file}
     echo ${file_count}
@@ -288,7 +291,7 @@ stream_play_main(){
 #        #res_end2=$(digit_half2full ${res_end2})
 #        #content2="${rest_start2}${enter}点${enter}到${enter}${res_end2}${enter}点${enter}休${enter}息${enter}第${enter}${cur_file2}${enter}集"
 #    fi
-    drawtext3="drawtext=fontsize=${newfontsize}:fontcolor=${fontcolor}:text='${content2}':fontfile=${fontdir}:expansion=normal:x=w-line_h\*4:y=h/2-line_h\*${cont_len}:shadowx=2:shadowy=2:${fontbg}"
+    drawtext3="drawtext=fontsize=${newfontsize}:fontcolor=${fontcolor}:text='${content2}':fontfile=${fontdir}:line_spacing=${line_spacing}:expansion=normal:x=w-line_h\*4:y=h/2-line_h\*${cont_len}:shadowx=2:shadowy=2:${fontbg}"
         
     watermark="[1:v]scale=-1:${newfontsize}\*2[wm];[bg][wm]overlay=overlay_w/3:overlay_h/2[bg1]"
     video_format="${video_format},${drawtext1},${drawtext2},${drawtext3}[bg];${mapa}volume=1.0[bga];${watermark};"
@@ -327,6 +330,8 @@ stream_play_main(){
         if [ "${play_time}" = "playing" ];then
             echo "${period}|${videopath}" >> "${playlist_done}"
         fi
+    else
+        echo ""
     fi
 
 }
